@@ -215,7 +215,7 @@ public class AdapterDocumentAssemblyHelper {
 
                 document.setId("urn:uuid:" + documentId);
 
-                document.setValue(xmlBytes);
+                //document.setValue(xmlBytes);
 
                 log.info("Set documentId to =" + document.getId());
 

@@ -15,9 +15,15 @@
 	</bean> 
 
 	<!-- Secured web service Implementation -->
-    <bean class="gov.hhs.fha.nhinc.docsubmission.nhin.proxy.NhinDocSubmissionProxyWebServiceSecuredImpl" id="nhinxdr" name="nhinxdrwssecured"> 
+    <bean class="gov.hhs.fha.nhinc.docsubmission.nhin.proxy.NhinDocSubmissionProxyWebServiceSecuredImpl" id="nhinxdrwssecured" name="nhinxdrwssecured"> 
 		<meta key="impltype" value="wssecured"/>
 		<meta key="default" value="true"/>
-	</bean> 
+	</bean>
+	
+	<!-- Secured web service Implementation -->
+    <bean class="gov.hhs.fha.nhinc.docsubmission.nhin.proxy.NhinDocSubmissionProxyWebServiceSecuredStream" id="nhinxdr" name="nhinxdrwssecuredstreamingtest"> 
+		<meta key="impltype" value="wssecured"/>
+		<meta key="default" value="true"/>
+	</bean>  
 
 </beans>

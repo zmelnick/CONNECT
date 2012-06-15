@@ -30,6 +30,7 @@ import gov.hhs.fha.nhinc.nhinclib.NullChecker;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.activation.DataHandler;
 import javax.xml.bind.JAXBElement;
 
 import org.apache.commons.logging.Log;
@@ -370,7 +371,7 @@ public class AdapterComponentDocRepositoryOrchImpl {
             // loop through binaryDocs list and put them into a hashmap for later use
             // when looping through the metadata - we need to associate the metadata
             // with the document (this is done by looking at the XDS Document id attribute).
-            HashMap<String, byte[]> docMap = new HashMap<String, byte[]>();
+            HashMap<String, DataHandler> docMap = new HashMap<String, DataHandler>();
             for (ProvideAndRegisterDocumentSetRequestType.Document tempDoc : binaryDocs) {
                 docMap.put(tempDoc.getId(), tempDoc.getValue());
             }
@@ -685,7 +686,7 @@ public class AdapterComponentDocRepositoryOrchImpl {
                         extractEventCodes(classifications, doc);
 
                         // get the document byte array from the hashmap populated earlier
-                        doc.setRawData((byte[]) docMap.get(extrinsicObject.getId()));
+                        //doc.setRawData((byte[]) docMap.get(extrinsicObject.getId()));
 
                         String availabilityStatus = extrinsicObject.getStatus();
                         log.debug("Availability status received in message: " + availabilityStatus);
@@ -705,7 +706,7 @@ public class AdapterComponentDocRepositoryOrchImpl {
                         // "parentDocumentRelationship"));
 
                         // TODO verify that this size logic is correct - it seems kludgy
-                        doc.setSize(((byte[]) docMap.get(extrinsicObject.getId())).length);
+                        //doc.setSize(((byte[]) docMap.get(extrinsicObject.getId())).length);
 
                         // TODO concatenate the adapter server's uri to the document unique id
                         doc.setDocumentUri(documentUniqueId);

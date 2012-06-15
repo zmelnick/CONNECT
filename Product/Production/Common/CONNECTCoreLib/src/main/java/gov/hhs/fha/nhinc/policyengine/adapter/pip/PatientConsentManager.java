@@ -304,7 +304,7 @@ public class PatientConsentManager {
             if (oPtPref.getFineGrainedPolicyMetadata() == null) {
                 oPtPref.setFineGrainedPolicyMetadata(new FineGrainedPolicyMetadataType());
             }
-            oPtPref.getFineGrainedPolicyMetadata().setSize(String.valueOf(oDoc.getValue().length));
+            oPtPref.getFineGrainedPolicyMetadata().setSize("0");
         }
 
         // If a matching document id is found the target will not be empty
@@ -340,7 +340,7 @@ public class PatientConsentManager {
         log.info("------ Begin PatientConsentManager.createDocumentRawData ------");
         ProvideAndRegisterDocumentSetRequestType.Document oDoc = new ProvideAndRegisterDocumentSetRequestType.Document();
         oDoc.setId(sDocUniqueId);
-        oDoc.setValue(sPrefDoc.getBytes());
+        //oDoc.setValue(sPrefDoc.getBytes());     
         log.info("------ End PatientConsentManager.createDocumentRawData ------");
         return oDoc;
     }

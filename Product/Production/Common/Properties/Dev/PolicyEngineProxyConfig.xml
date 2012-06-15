@@ -10,7 +10,7 @@
 	<description>Beans included in this file: {policyengine}</description>
 
 	<!-- No-op Implementation -->
-	<bean class="gov.hhs.fha.nhinc.policyengine.adapter.proxy.PolicyEngineProxyNoOpImpl" id="policyenginenoop" name="policyenginenoop"> 
+	<bean class="gov.hhs.fha.nhinc.policyengine.adapter.proxy.PolicyEngineProxyNoOpImpl" id="policyengine" name="policyenginenoop"> 
 		<meta key="impltype" value="noop"/>
 	</bean> 
 
@@ -25,7 +25,7 @@
 	</bean> 
 
 	<!-- Unsecured web service Implementation -->
-	<bean class="gov.hhs.fha.nhinc.policyengine.adapter.proxy.PolicyEngineProxyWebServiceUnsecuredImpl" id="policyengine" name="policyenginewsunsecured"> 
+	<bean class="gov.hhs.fha.nhinc.policyengine.adapter.proxy.PolicyEngineProxyWebServiceUnsecuredImpl" id="policyengine1111" name="policyenginewsunsecured"> 
 		<meta key="impltype" value="wsunsecured"/>
 		<meta key="default" value="true"/>
 	</bean> 

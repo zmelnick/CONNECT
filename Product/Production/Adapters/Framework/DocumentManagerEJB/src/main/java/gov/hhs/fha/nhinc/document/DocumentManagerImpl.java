@@ -717,7 +717,7 @@ public class DocumentManagerImpl {
         // Build document object
         Document document = new Document();
         document.setId(extrinsic.getId());
-        document.setValue(docResponse.getDocumentResponse().get(0).getDocument());
+        //document.setValue(docResponse.getDocumentResponse().get(0).getDocument());
 
         // Add request to body for submission
         SubmitObjectsRequest submitObjects = new SubmitObjectsRequest();
