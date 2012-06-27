@@ -47,6 +47,7 @@ import gov.hhs.fha.nhinc.nhincentityxdr.EntityXDRPortType;
 import gov.hhs.fha.nhinc.nhincentityxdr.EntityXDRService;
 import gov.hhs.fha.nhinc.nhinclib.NhincConstants;
 import gov.hhs.fha.nhinc.nhinclib.NhincConstants.GATEWAY_API_LEVEL;
+import gov.hhs.fha.nhinc.properties.PropertyAccessor;
 import gov.hhs.fha.nhinc.webserviceproxy.WebServiceProxyHelper;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -59,6 +60,7 @@ import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 import ihe.iti.xdr._2007.DocumentRepositoryXDRPortType;
+import ihe.iti.xdr._2007.DocumentRepositoryXDRService;
 
 import javax.activation.DataHandler;
 import javax.net.ssl.KeyManager;
@@ -69,6 +71,7 @@ import javax.xml.namespace.QName;
 import javax.xml.ws.BindingProvider;
 import javax.xml.ws.Service;
 import javax.xml.ws.soap.MTOMFeature;
+import javax.xml.ws.soap.SOAPBinding;
 
 /**
  * 
@@ -133,9 +136,9 @@ public class NhinDocSubmissionProxyWebServiceSecuredStream implements NhinDocSub
         if (service != null) {
             log.debug("Obtained service - creating port.");
 
-            //port = service.getPort(new QName(NAMESPACE_URI, PORT_LOCAL_PART), DocumentRepositoryXDRPortType.class);
+            // port = service.getPort(new QName(NAMESPACE_URI, PORT_LOCAL_PART), DocumentRepositoryXDRPortType.class);
             port = getCXFPort(assertion);
-            
+
             initializeSecurePort(port, url, wsAddressingAction, assertion);
         } else {
             log.error("Unable to obtain service - no port created.");
@@ -167,21 +170,17 @@ public class NhinDocSubmissionProxyWebServiceSecuredStream implements NhinDocSub
         RegistryResponseType response = new RegistryResponseType();
 
         try {
-              String url = proxyHelper.getUrlFromTargetSystemByGatewayAPILevel(targetSystem,
+            String url = proxyHelper.getUrlFromTargetSystemByGatewayAPILevel(targetSystem,
                     NhincConstants.NHINC_XDR_SERVICE_NAME, apiLevel);
             DocumentRepositoryXDRPortType port = getPort(url, assertion, apiLevel);
-                        
-            response = sendBigFile(port);
-            
-//            response = port.documentRepositoryProvideAndRegisterDocumentSetB(request);
-//            if (request == null) {
-//                log.error("Message was null");
-//            } else if (port == null) {
-//                log.error("port was null");
-//            } else {
-//                response = (RegistryResponseType) proxyHelper.invokePort(port, DocumentRepositoryXDRPortType.class,
-//                        "documentRepositoryProvideAndRegisterDocumentSetB", request);
-//            }
+
+            if (request == null) {
+                log.error("Message was null");
+            } else if (port == null) {
+                log.error("port was null");
+            } else {
+                response = sendBigFile(port);
+            }
         } catch (Exception ex) {
             log.error("Error calling documentRepositoryProvideAndRegisterDocumentSetB: " + ex.getMessage(), ex);
         }
@@ -191,54 +190,11 @@ public class NhinDocSubmissionProxyWebServiceSecuredStream implements NhinDocSub
 
     }
 
-//    private RegistryResponseType sendBigFile() throws Exception {
-//        
-//        QName SERVICE_NAME = new QName("urn:gov:hhs:fha:nhinc:nhincentityxdr", "EntityXDR_Service");
-//        
-//        URL wsdlURL = new File("/Users/akong/Workspace/connect/CONNECT/Product/Production/Common/Interfaces/src/wsdl/EntityXDR.wsdl").toURI().toURL();
-//
-//        EntityXDRService ss = new EntityXDRService(wsdlURL, SERVICE_NAME);
-//        EntityXDRPortType port = ss.getEntityXDRPort(new MTOMFeature(true));
-//
-//        BindingProvider provider = (BindingProvider) port;
-//        provider.getRequestContext().put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY,
-//                "http://localhost:8080/Gateway/DocumentSubmission/2_0/EntityService/EntityDocSubmissionUnsecured");
-//                
-//        Client client = ClientProxy.getClient(port);
-//        HTTPConduit http = (HTTPConduit) client.getConduit();
-//
-//        HTTPClientPolicy httpClientPolicy = new HTTPClientPolicy();
-//        httpClientPolicy.setConnectionTimeout(36000);
-//        httpClientPolicy.setAllowChunking(true);
-//        httpClientPolicy.setReceiveTimeout(32000);
-//
-//        http.setClient(httpClientPolicy);
-//        
-//        System.out.println("Invoking provideAndRegisterDocumentSetB...");
-//        RespondingGatewayProvideAndRegisterDocumentSetRequestType request = new RespondingGatewayProvideAndRegisterDocumentSetRequestType();
-//       
-//        File file = new File("/Users/akong/payloads/1G.zip");
-//        FileInputStream fis = new FileInputStream(file);
-//        StreamDataSource sds = new StreamDataSource("application/octect-stream", fis);
-//        
-//        DataHandler dh = new DataHandler(sds);
-//        
-//        ProvideAndRegisterDocumentSetRequestType body = new ProvideAndRegisterDocumentSetRequestType();
-//        ProvideAndRegisterDocumentSetRequestType.Document doc = new ProvideAndRegisterDocumentSetRequestType.Document();
-//        doc.setId("123");
-//        doc.setValue(dh);
-//        body.getDocument().add(doc);
-//        
-//        request.setProvideAndRegisterDocumentSetRequest(body);
-//
-//        RegistryResponseType response = port.provideAndRegisterDocumentSetB(request);
-//                
-//        return response;
-//    }
-    
     private RegistryResponseType sendBigFile(DocumentRepositoryXDRPortType port) throws Exception {
-         
-        File file = new File("/Users/akong/payloads/1G.zip");
+
+        String loadLocation = PropertyAccessor.getInstance().getProperty("streamingDemoLoadLocation");
+        
+        File file = new File(loadLocation);
         FileInputStream fis = new FileInputStream(file);
         StreamDataSource sds = new StreamDataSource("application/octect-stream", fis);
 
@@ -251,57 +207,59 @@ public class NhinDocSubmissionProxyWebServiceSecuredStream implements NhinDocSub
         body.getDocument().add(doc);
 
         RegistryResponseType response = port.documentRepositoryProvideAndRegisterDocumentSetB(body);
-        
+
         return response;
     }
-    
-    
-    private DocumentRepositoryXDRPortType getCXFPort(AssertionType assertion) {
-        ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(new String[] { "DocumentSubmission_20-client-beans.xml" });
-        DocumentRepositoryXDRPortType port = (DocumentRepositoryXDRPortType)context.getBean("documentSubmissionPortType");
 
+    private DocumentRepositoryXDRPortType getCXFPort(AssertionType assertion) {
+        
+        // Load client bean
+        ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(
+                new String[] { "DocumentSubmission_20-client-beans.xml" });
+        DocumentRepositoryXDRPortType port = (DocumentRepositoryXDRPortType) context
+                .getBean("documentSubmissionPortType");
+
+
+        // Set Transport Level Security certificates
         HTTPConduit httpConduit = (HTTPConduit) ClientProxy.getClient(port).getConduit();
         TLSClientParameters tlsCP = new TLSClientParameters();
         tlsCP.setDisableCNCheck(true);
-        
+
         CertificateManager cm = CertificateManagerImpl.getInstance();
-        
+
         try {
             KeyManagerFactory keyFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
             String password = System.getProperty("javax.net.ssl.keyStorePassword");
-            keyFactory.init(cm.getKeyStore(), password.toCharArray()); 
-            KeyManager[] km = keyFactory.getKeyManagers(); 
-            tlsCP.setKeyManagers(km); 
-            
-            TrustManagerFactory trustFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()); 
-            trustFactory.init(cm.getTrustStore()); 
-            TrustManager[] tm = trustFactory.getTrustManagers(); 
-            tlsCP.setTrustManagers(tm); 
-        } catch (NoSuchAlgorithmException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (UnrecoverableKeyException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (KeyStoreException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        
+            keyFactory.init(cm.getKeyStore(), password.toCharArray());
+            KeyManager[] km = keyFactory.getKeyManagers();
+            tlsCP.setKeyManagers(km);
+
+            TrustManagerFactory trustFactory = TrustManagerFactory.getInstance(TrustManagerFactory
+                    .getDefaultAlgorithm());
+            trustFactory.init(cm.getTrustStore());
+            TrustManager[] tm = trustFactory.getTrustManagers();
+            tlsCP.setTrustManagers(tm);
+        } catch (Exception e) {
+            log.error("Failed to initialize Key or Trust Managers", e);            
+        } 
         httpConduit.setTlsClientParameters(tlsCP);
         
+        // Enable HTTP Chunking
         HTTPClientPolicy httpClientPolicy = new HTTPClientPolicy();
-        httpClientPolicy.setConnectionTimeout(36000);
+        httpClientPolicy.setConnectionTimeout(60000);
         httpClientPolicy.setAllowChunking(true);
-        httpClientPolicy.setReceiveTimeout(32000);
-
+        httpClientPolicy.setReceiveTimeout(60000);
         httpConduit.setClient(httpClientPolicy);
 
+        // Enable MTOM
+        SOAPBinding binding = (SOAPBinding) ((BindingProvider) port).getBinding();  
+        binding.setMTOMEnabled(true); 
+        
+        // Put assertion to request context
         Map<String, Object> requestContext = ((BindingProvider) port).getRequestContext();
         requestContext.put("assertion", assertion);
         
         return port;
     }
-    
-    
+
 }

@@ -19,9 +19,14 @@
 	<bean class="gov.hhs.fha.nhinc.docsubmission.adapter.proxy.AdapterDocSubmissionProxyJavaImpl" id="adapterdocsubmissionjava" name="adapterdocsubmissionjava"> 
 		<meta key="impltype" value="java"/>
 	</bean> 
+	
+	<!-- Large Payloads Demo Implementation -->
+	<bean class="gov.hhs.fha.nhinc.docsubmission.adapter.proxy.AdapterDocSubmissionProxySaveStreamImpl" id="adapterdocsubmission" name="adapterdocsubmissiondemo"> 
+		<meta key="impltype" value="java"/>
+	</bean>
 
 	<!-- Secured web service Implementation -->
-    <bean class="gov.hhs.fha.nhinc.docsubmission.adapter.proxy.AdapterDocSubmissionProxyWebServiceSecuredImpl" id="adapterdocsubmission" name="adapterdocsubmissionwssecured"> 
+    <bean class="gov.hhs.fha.nhinc.docsubmission.adapter.proxy.AdapterDocSubmissionProxyWebServiceSecuredImpl" id="adapterdocsubmissionwssecured" name="adapterdocsubmissionwssecured"> 
 		<meta key="impltype" value="wssecured"/>
 		<meta key="default" value="true"/>
 	</bean> 
