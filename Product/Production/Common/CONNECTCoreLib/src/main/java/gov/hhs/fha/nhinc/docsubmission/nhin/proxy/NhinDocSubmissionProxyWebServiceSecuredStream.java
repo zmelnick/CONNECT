@@ -219,7 +219,7 @@ public class NhinDocSubmissionProxyWebServiceSecuredStream implements NhinDocSub
         DocumentRepositoryXDRPortType port = (DocumentRepositoryXDRPortType) context
                 .getBean("documentSubmissionPortType");
 
-
+        
         // Set Transport Level Security certificates
         HTTPConduit httpConduit = (HTTPConduit) ClientProxy.getClient(port).getConduit();
         TLSClientParameters tlsCP = new TLSClientParameters();
@@ -246,9 +246,9 @@ public class NhinDocSubmissionProxyWebServiceSecuredStream implements NhinDocSub
         
         // Enable HTTP Chunking
         HTTPClientPolicy httpClientPolicy = new HTTPClientPolicy();
-        httpClientPolicy.setConnectionTimeout(60000);
+        httpClientPolicy.setConnectionTimeout(0);
         httpClientPolicy.setAllowChunking(true);
-        httpClientPolicy.setReceiveTimeout(60000);
+        httpClientPolicy.setReceiveTimeout(0);
         httpConduit.setClient(httpClientPolicy);
 
         // Enable MTOM
