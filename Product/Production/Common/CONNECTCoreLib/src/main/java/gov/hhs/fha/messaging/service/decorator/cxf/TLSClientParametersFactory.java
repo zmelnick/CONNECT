@@ -1,7 +1,7 @@
 /**
  * 
  */
-package gov.hhs.fha.messaging;
+package gov.hhs.fha.messaging.service.decorator.cxf;
 
 import gov.hhs.fha.nhinc.callback.openSAML.CertificateManager;
 import gov.hhs.fha.nhinc.callback.openSAML.CertificateManagerImpl;

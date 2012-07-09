@@ -26,20 +26,17 @@
  */
 package gov.hhs.fha.nhinc.docsubmission.nhin.proxy;
 
-import gov.hhs.fha.messaging.ApacheCXFServiceEndpointDecorator;
-import gov.hhs.fha.messaging.SAMLServiceEndpointDecorator;
-import gov.hhs.fha.messaging.ServiceEndpointBuilder;
-import gov.hhs.fha.messaging.WebServiceProxyHelperServiceEndpointBuilder;
+import gov.hhs.fha.messaging.client.CONNECTClient;
+import gov.hhs.fha.messaging.client.CONNECTClientFactory;
+import gov.hhs.fha.messaging.service.port.ServicePortDescriptor;
 import gov.hhs.fha.nhinc.common.nhinccommon.AssertionType;
 import gov.hhs.fha.nhinc.common.nhinccommon.NhinTargetSystemType;
+import gov.hhs.fha.nhinc.docsubmission.nhin.proxy.service.NhinDocSubmission20ServicePortDescriptor;
+import gov.hhs.fha.nhinc.docsubmission.nhin.proxy.service.NhinDocSubmissionServicePortDescriptor;
 import gov.hhs.fha.nhinc.nhinclib.NhincConstants;
 import gov.hhs.fha.nhinc.webserviceproxy.WebServiceProxyHelper;
 import ihe.iti.xdr._2007.DocumentRepositoryXDRPortType;
 import ihe.iti.xds_b._2007.ProvideAndRegisterDocumentSetRequestType;
-
-import java.util.HashMap;
-
-import javax.xml.ws.Service;
 
 import oasis.names.tc.ebxml_regrep.xsd.rs._3.RegistryResponseType;
 
@@ -52,8 +49,6 @@ import org.apache.commons.logging.LogFactory;
  */
 public class NhinDocSubmissionProxyWebServiceSecuredImpl implements NhinDocSubmissionProxy {
     private Log log = null;
-    private static final String WS_ADDRESSING_ACTION_G0 = "urn:ihe:iti:xdr:2007:ProvideAndRegisterDocumentSet-b";
-    private static final String WS_ADDRESSING_ACTION_G1 = "urn:ihe:iti:2007:ProvideAndRegisterDocumentSet-b";
     private WebServiceProxyHelper proxyHelper = null;
 
     public NhinDocSubmissionProxyWebServiceSecuredImpl() {
@@ -65,30 +60,14 @@ public class NhinDocSubmissionProxyWebServiceSecuredImpl implements NhinDocSubmi
         return LogFactory.getLog(getClass());
     }
 
-   
-    public ServiceEndpointBuilder<DocumentRepositoryXDRPortType> getServiceEndpointBuilder(
+    public ServicePortDescriptor<DocumentRepositoryXDRPortType> getServicePortDescriptor(
             NhincConstants.GATEWAY_API_LEVEL apiLevel) {
         switch (apiLevel) {
         case LEVEL_g0:
-            return (new NhinDocSubmissionSEIBuilderFactory()).getServiceEndpointBuilder();
+            return new NhinDocSubmissionServicePortDescriptor();
         default:
-            return (new NhinDocSubmission20SEIBuilderFactory()).getServiceEndpointBuilder();
+            return new NhinDocSubmission20ServicePortDescriptor();
         }
-    }
-
-    public String getAction(NhincConstants.GATEWAY_API_LEVEL apiLevel) {
-        String wsAddressingAction;
-        switch (apiLevel) {
-        case LEVEL_g0:
-            wsAddressingAction = WS_ADDRESSING_ACTION_G0;
-            break;
-        case LEVEL_g1:
-            wsAddressingAction = WS_ADDRESSING_ACTION_G1;
-            break;
-        default:
-            wsAddressingAction = null;
-        }
-        return wsAddressingAction;
     }
 
     public RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request,
@@ -100,11 +79,14 @@ public class NhinDocSubmissionProxyWebServiceSecuredImpl implements NhinDocSubmi
             String url = proxyHelper.getUrlFromTargetSystemByGatewayAPILevel(targetSystem,
                     NhincConstants.NHINC_XDR_SERVICE_NAME, apiLevel);
 
-            ServiceEndpointBuilder<DocumentRepositoryXDRPortType> seiBuilder = new ApacheCXFServiceEndpointDecorator<DocumentRepositoryXDRPortType>(
-                    getServiceEndpointBuilder(apiLevel), assertion, url);
+            ServicePortDescriptor<DocumentRepositoryXDRPortType> portDescriptor = getServicePortDescriptor(apiLevel);
 
-            response = seiBuilder.build().documentRepositoryProvideAndRegisterDocumentSetB(request);
-          
+            CONNECTClient<DocumentRepositoryXDRPortType> client = new CONNECTClientFactory<DocumentRepositoryXDRPortType>()
+                    .getCONNECTClient(portDescriptor, url, assertion);
+
+            response = (RegistryResponseType) client.invokePort(DocumentRepositoryXDRPortType.class,
+                    "documentRepositoryProvideAndRegisterDocumentSetB", request);
+
         } catch (Exception ex) {
             log.error("Error calling documentRepositoryProvideAndRegisterDocumentSetB: " + ex.getMessage(), ex);
         }

@@ -1,9 +1,10 @@
 /**
  * 
  */
-package gov.hhs.fha.messaging;
+package gov.hhs.fha.messaging.service.decorator.cxf;
 
-import gov.hhs.fha.nhinc.common.nhinccommon.AssertionType;
+import gov.hhs.fha.messaging.service.ServiceEndpoint;
+import gov.hhs.fha.messaging.service.decorator.ServiceEndpointDecorator;
 
 import org.apache.cxf.configuration.jsse.TLSClientParameters;
 import org.apache.cxf.endpoint.Client;
@@ -15,27 +16,25 @@ import org.apache.cxf.transport.http.HTTPConduit;
  * @param <T>
  * 
  */
-public class ApacheCXFServiceEndpointDecorator<T> extends ServiceEndpointDecorator<T> {
+public class TLSClientServiceEndpointDecorator<T> extends ServiceEndpointDecorator<T> {
 
     /**
      * @param decoratored
      * @param assertion 
      * @param url 
      */
-    public ApacheCXFServiceEndpointDecorator(ServiceEndpointBuilder<T> decoratored, AssertionType assertion, String url) {
-        super(new URLServiceEndpointDecorator<T>(new SAMLServiceEndpointDecorator<T>(decoratored, assertion), url));
+    public TLSClientServiceEndpointDecorator(ServiceEndpoint<T> decoratoredEndpoint) {
+        super(decoratoredEndpoint);
     }
 
     @Override
-    public T build() {
+    public void configure() {
 
-        T port = super.build();
-        Client client = ClientProxy.getClient(port);
+        super.configure();
+        Client client = ClientProxy.getClient(getPort());
         HTTPConduit conduit = (HTTPConduit) client.getConduit();
         TLSClientParameters tlsCP = TLSClientParametersFactory.getInstance().getTLSClientParameters();
         conduit.setTlsClientParameters(tlsCP);
-
-        return port;
     }
 
 }
