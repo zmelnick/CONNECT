@@ -374,7 +374,7 @@ public class Page2 extends AbstractPageBean {
             }
         }
         try {
-            String agencyName = PropertyAccessor.getProperty(PROPERTY_FILE_NAME_UC, PROPERTY_FILE_KEY_AGENCY);
+            String agencyName = PropertyAccessor.getInstance().getProperty(PROPERTY_FILE_NAME_UC, PROPERTY_FILE_KEY_AGENCY);
             this.agencyLogo.setText(agencyName);
         } catch (PropertyAccessException ex) {
             log.error("Universal Client can not access " + PROPERTY_FILE_KEY_AGENCY + " property: " + ex.getMessage());
@@ -448,8 +448,9 @@ public class Page2 extends AbstractPageBean {
         String firstName = (String) firstNameField.getText();
         String lastName = (String) lastNameField.getText();
         try {
-            String assigningAuthId = PropertyAccessor.getProperty(PROPERTY_FILE_NAME_ADAPTER, PROPERTY_FILE_KEY_ASSIGN_AUTH);
-            String orgId = PropertyAccessor.getProperty(PROPERTY_FILE_NAME_GATEWAY, PROPERTY_FILE_KEY_HOME_COMMUNITY);
+            PropertyAccessor propertyAccessor = PropertyAccessor.getInstance();
+            String assigningAuthId = propertyAccessor.getProperty(PROPERTY_FILE_NAME_ADAPTER, PROPERTY_FILE_KEY_ASSIGN_AUTH);
+            String orgId = propertyAccessor.getProperty(PROPERTY_FILE_NAME_GATEWAY, PROPERTY_FILE_KEY_HOME_COMMUNITY);
 
             StringBuffer searchInfoBuf = new StringBuffer("Searching for Patient: ");
             boolean isFirstNameAvail = false;
@@ -926,9 +927,13 @@ public class Page2 extends AbstractPageBean {
         }
 
         InputStream xsl = getExternalContext().getResourceAsStream("/WEB-INF/CCD.xsl");
-
+		InputStream xml = new ByteArrayInputStream(document.getBytes());
+		
         String html = convertXMLToHTML(new ByteArrayInputStream(document.getBytes()), xsl);
 
+		xsl.close();
+		xml.close();
+		
         log.debug("HTML PAGE: " + html);
 
         if (html == null || html.isEmpty()) {

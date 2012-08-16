@@ -209,8 +209,9 @@ public class HL7PRPA201306Transforms {
         addLogDebug("Create the 201306 message header fields");
         result.setITSVersion(HL7Constants.ITS_VERSION);
 
+        // GW-406: The senderID == receiverID when the message does not leave Gateway
         // extract the receiverOID from the request message - it will become the sender
-        String sReceiverOIDFromMessage = getReceiverOIDFromPRPAIN201305UV02Request(oRequest);
+        String sReceiverOIDFromMessage = getSenderOIDFromPRPAIN201305UV02Request(oRequest);
         String senderOID = sReceiverOIDFromMessage;
 
         // Update 3.1.1: use the current home community id as defined in gateway.properties
@@ -218,7 +219,7 @@ public class HL7PRPA201306Transforms {
         try {
             log.info("Attempting to retrieve property: " + NhincConstants.HOME_COMMUNITY_ID_PROPERTY
                     + " from property file: " + NhincConstants.GATEWAY_PROPERTY_FILE);
-            String sHomeCommunityId = PropertyAccessor.getProperty(NhincConstants.GATEWAY_PROPERTY_FILE,
+            String sHomeCommunityId = PropertyAccessor.getInstance().getProperty(NhincConstants.GATEWAY_PROPERTY_FILE,
                     NhincConstants.HOME_COMMUNITY_ID_PROPERTY);
             log.info("Retrieve local home community id: " + sHomeCommunityId);
             // If the property is set, then use this instead of from sending request

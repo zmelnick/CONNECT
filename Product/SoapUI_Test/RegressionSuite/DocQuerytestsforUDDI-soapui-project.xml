@@ -1,6 +1,7 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?><con:soapui-project xmlns:con="http://eviware.com/soapui/config" abortOnError="false" name="DocQueryTestsForUDDI" resourceRoot="" runType="SEQUENTIAL" soapui-version="3.5.1">
+<?xml version="1.0" encoding="UTF-8"?>
+<con:soapui-project abortOnError="false" name="DocQueryTestsForUDDI" resourceRoot="" runType="SEQUENTIAL" soapui-version="3.6" xmlns:con="http://eviware.com/soapui/config">
   <con:description/><con:settings/>
-  <con:interface xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" anonymous="optional" bindingName="{urn:gov:hhs:fha:nhinc:entitydocquery}EntityDocQueryBindingSoap" definition="WSDL path not set.  #EntityDocQuery.wsdl" name="EntityDocQueryBindingSoap" soapVersion="1_2" type="wsdl" wsaVersion="NONE" xsi:type="con:WsdlInterface">
+  <con:interface anonymous="optional" bindingName="{urn:gov:hhs:fha:nhinc:entitydocquery}EntityDocQueryBindingSoap" definition="c:\glassfish-2.1.1\domains\domain1\config\nhin\wsdl\WSDL path not set.  " name="EntityDocQueryBindingSoap" soapVersion="1_2" type="wsdl" wsaVersion="NONE" xsi:type="con:WsdlInterface" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <con:settings/>
     
     <con:endpoints>
@@ -15,7 +16,7 @@
       <con:settings/>
     </con:operation>
   </con:interface>
-  <con:interface xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" anonymous="optional" bindingName="{urn:gov:hhs:fha:nhinc:nhincdocquery}NhincDocQueryPortTypeBinding" definition="WSDL path not set.  #NhincDocQuery.wsdl" name="NhincDocQueryPortTypeBinding" soapVersion="1_2" type="wsdl" wsaVersion="NONE" xsi:type="con:WsdlInterface">
+  <con:interface anonymous="optional" bindingName="{urn:gov:hhs:fha:nhinc:nhincdocquery}NhincDocQueryPortTypeBinding" definition="c:\glassfish-2.1.1\domains\domain1\config\nhin\wsdl\WSDL path not set.  " name="NhincDocQueryPortTypeBinding" soapVersion="1_2" type="wsdl" wsaVersion="NONE" xsi:type="con:WsdlInterface" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <con:settings/>
     
     <con:endpoints>
@@ -29,6 +30,424 @@
   <con:testSuite name="DocQueryTestsForUDDI TestSuite">
     <con:settings/>
     <con:runType>SEQUENTIAL</con:runType>
+    <con:testCase failOnError="true" failTestCaseOnErrors="true" id="2ac7a10e-f0e6-4d32-b45d-6874809b4e08" keepSession="false" maxResults="0" name="HCID Happy Path - No Patient Correlations" searchProperties="true">
+      <con:settings/>
+      
+      <con:testStep name="Copy uddiConnectionInfo" type="groovy">
+        <con:settings/>
+        <con:config>
+          <script>def groovyUtils = new com.eviware.soapui.support.GroovyUtils( context )
+def testCase = testRunner.getTestCase()
+def testSuite = testCase.getTestSuite()
+def project = testSuite.getProject()
+def projectPropFullFile = project.getPath()
+def projectPropPath = groovyUtils.projectPath
+
+def sourceDir = projectPropPath;
+def sourceFile = "UDDIcopy-uddiConnectionInfo.xml";
+//def destDir = context.findProperty( "NHINGatewayConfigDir" );
+def destDir = System.env['NHINC_PROPERTIES_DIR'];
+def destFile = "uddiConnectionInfo.xml";
+
+log.info(sourceDir +'; ' + sourceFile  +'; ' + destDir +'; ' + destFile );
+
+FileUtils.MoveFile(sourceDir, sourceFile, destDir, destFile, context, log);</script>
+        </con:config>
+      </con:testStep>
+      <con:testStep name="update config" type="groovy">
+        <con:settings/>
+        <con:config>
+          <script>//def destConfigFileLocation = dataSource.getPropertyValue("NHINGatewayConfigDir");
+def destConfigFileLocation = System.env['NHINC_PROPERTIES_DIR'];
+
+void UpdateProperty(String directory, String filename, String propertyKey, String propertyValue,context,log) {
+			  
+   log.info("begin UpdateProperty; directory='" + directory + "';filename='" + filename + "';key='" + propertyKey + "';value='" + propertyValue + "';");
+   File file = new File(directory,filename);
+   Properties properties = new Properties();
+   FileInputStream frPropFile = new FileInputStream(file);
+   properties.load(frPropFile);
+   properties.setProperty(propertyKey, propertyValue);
+   FileOutputStream fwPropFile = new FileOutputStream(file);
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
+   properties = null;
+}
+
+UpdateProperty(destConfigFileLocation,"gateway.properties","documentQueryQuerySelf","false",context,log);</script>
+        </con:config>
+      </con:testStep>
+      <con:testStep name="Generate patient ID for Doc Query" type="groovy">
+        <con:settings/>
+        <con:config>
+          <script>def localAA = context.findProperty('LocalAA')
+def dqPatientID = context.findProperty('DQPatientID')
+
+context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;${localAA}&amp;amp;ISO'");</script>
+        </con:config>
+      </con:testStep>
+      <con:testStep name="Clear Correlation Table" type="groovy">
+        <con:settings/>
+        <con:config>
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
+  def table = context.findProperty('PatientCorrelationTable')
+  
+  sql.execute('delete from ' + table)
+}</script>
+        </con:config>
+      </con:testStep>
+      <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
+        <con:settings/>
+        <con:config>
+          <script>context.withSql('AAMappingDB') { sql -> 
+  def table = context.findProperty('AAMappingTable')
+  
+  sql.execute('delete from ' + table)
+
+  def remoteAA = context.findProperty( "RemoteAA" )
+  def remoteHCID = context.findProperty("RemoteHCID")
+  def hcid1 = context.findProperty("UDDIhcid1")
+  def hcid2 = context.findProperty("UDDIhcid2")
+  def hcid3 = context.findProperty("UDDIhcid3")
+  def hcid4 = context.findProperty("UDDIhcid4")
+  def testhcid = context.findProperty("testHCID")
+  def aa1 = context.findProperty("UDDIaa1")
+  def aa2 = context.findProperty("UDDIaa2")
+  def aa3 = context.findProperty("UDDIaa3")
+  def aa4 = context.findProperty("UDDIaa4")
+  def testaa = context.findProperty("testAA")
+  
+  def insertSql = "insert into " + table + " (id, assigningauthorityid, homecommunityid) " + 
+                   "values (1, ?, ?)"
+  sql.executeUpdate(insertSql, [remoteAA, remoteHCID])
+  sql.executeUpdate(insertSql, [aa1, hcid1])
+  sql.executeUpdate(insertSql, [aa2, hcid2])
+  sql.executeUpdate(insertSql, [aa3, hcid3])
+  sql.executeUpdate(insertSql, [aa4, hcid4])
+  sql.executeUpdate(insertSql, [testaa, testhcid])
+  
+}</script>
+        </con:config>
+      </con:testStep>
+      <con:testStep name="Document Query" type="request">
+        <con:settings/>
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <con:interface>EntityDocQueryBindingSoap</con:interface>
+          <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
+          <con:request name="Document Query">
+            <con:settings/>
+            <con:encoding>UTF-8</con:encoding>
+            <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
+            <con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope" xmlns:urn="urn:gov:hhs:fha:nhinc:common:nhinccommonentity" xmlns:urn1="urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0" xmlns:urn2="urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0" xmlns:urn3="urn:gov:hhs:fha:nhinc:common:nhinccommon">
+   <soapenv:Header/>
+   <soapenv:Body projectName="DocQueryTestsForUDDI" testCase="HCID Happy Path - No Patient Correlations">
+      <urn:RespondingGateway_CrossGatewayQueryRequest>
+         <urn1:AdhocQueryRequest federated="false" startIndex="0" maxResults="-1">
+            <urn1:ResponseOption returnType="RegistryObject" returnComposedObjects="false"/>
+            <urn2:AdhocQuery home="urn:oid:2.16.840.1.113883.3.200" id="urn:uuid:14d4debf-8f97-4251-9a74-a90016b0af0d">
+               <urn2:Slot name="$XDSDocumentEntryPatientId">
+                  <urn2:ValueList>
+                     <urn2:Value>${#TestCase#FullPatientID}</urn2:Value>
+                  </urn2:ValueList>
+               </urn2:Slot>
+            </urn2:AdhocQuery>
+         </urn1:AdhocQueryRequest>
+         <urn:assertion>
+            <urn3:address xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
+               <urn3:addressType>
+                  <urn3:code>AddrCode</urn3:code>
+                  <urn3:codeSystem>AddrCodeSyst</urn3:codeSystem>
+                  <urn3:codeSystemName>AddrCodeSystName</urn3:codeSystemName>
+                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
+                  <urn3:displayName>AddrCode</urn3:displayName>
+                  <urn3:originalText>AddrCode</urn3:originalText>
+               </urn3:addressType>
+               <urn3:city>AddrCity</urn3:city>
+               <urn3:country>AddrCountry</urn3:country>
+               <urn3:state>AddrState</urn3:state>
+               <urn3:streetAddress>AddrStreet</urn3:streetAddress>
+               <urn3:zipCode>AddrZip</urn3:zipCode>
+            </urn3:address>
+            <urn3:dateOfBirth xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">06/04/1959 05:21:00</urn3:dateOfBirth>
+            <urn3:dateOfSignature xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">${#Project#sigDate}</urn3:dateOfSignature>
+            <urn3:expirationDate xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">${#Project#expireDate}</urn3:expirationDate>
+            <urn3:explanationNonClaimantSignature xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">Electronic</urn3:explanationNonClaimantSignature>
+            <urn3:haveSecondWitnessSignature xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">false</urn3:haveSecondWitnessSignature>
+            <urn3:haveSignature xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">false</urn3:haveSignature>
+            <urn3:haveWitnessSignature xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">false</urn3:haveWitnessSignature>
+            <urn3:homeCommunity xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
+               <urn3:description>${#Project#LocalHCDescription}</urn3:description>
+               <urn3:homeCommunityId>${#Project#LocalHCID}</urn3:homeCommunityId>
+               <urn3:name>${#Project#LocalHCDescription}</urn3:name>
+            </urn3:homeCommunity>
+            <urn3:personName xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
+               <urn3:familyName>Smith</urn3:familyName>
+               <urn3:givenName>Sandy</urn3:givenName>
+               <urn3:nameType>
+                  <urn3:code>nameCode</urn3:code>
+                  <urn3:codeSystem>nameCodeSyst</urn3:codeSystem>
+                  <urn3:codeSystemName>nameCodeSystName</urn3:codeSystemName>
+                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
+                  <urn3:displayName>nameCode</urn3:displayName>
+                  <urn3:originalText>nameCode</urn3:originalText>
+               </urn3:nameType>
+               <urn3:secondNameOrInitials>S</urn3:secondNameOrInitials>
+               <urn3:fullName>Sandy S. Smith</urn3:fullName>
+            </urn3:personName>
+            <urn3:phoneNumber xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
+               <urn3:areaCode>321</urn3:areaCode>
+               <urn3:countryCode>1</urn3:countryCode>
+               <urn3:extension>5436</urn3:extension>
+               <urn3:localNumber>253-6849</urn3:localNumber>
+               <urn3:phoneNumberType>
+                  <urn3:code>phoneCode</urn3:code>
+                  <urn3:codeSystem>phoneCodeSyst</urn3:codeSystem>
+                  <urn3:codeSystemName>phoneCodeSystName</urn3:codeSystemName>
+                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
+                  <urn3:displayName>phoneCode</urn3:displayName>
+                  <urn3:originalText>phoneCode</urn3:originalText>
+               </urn3:phoneNumberType>
+            </urn3:phoneNumber>
+            <urn3:purposeOfDisclosure xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">TREATMENT</urn3:purposeOfDisclosure>
+            <urn3:secondWitnessAddress xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
+               <urn3:addressType>
+                  <urn3:code>AddrCode</urn3:code>
+                  <urn3:codeSystem>AddrCodeSyst</urn3:codeSystem>
+                  <urn3:codeSystemName>AddrCodeSystName</urn3:codeSystemName>
+                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
+                  <urn3:displayName>AddrCode</urn3:displayName>
+                  <urn3:originalText>AddrCode</urn3:originalText>
+               </urn3:addressType>
+               <urn3:city>Addr2City</urn3:city>
+               <urn3:country>Addr2Country</urn3:country>
+               <urn3:state>Addr2State</urn3:state>
+               <urn3:streetAddress>Addr2Street</urn3:streetAddress>
+               <urn3:zipCode>Addr2Zip</urn3:zipCode>
+            </urn3:secondWitnessAddress>
+            <urn3:secondWitnessName xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
+               <urn3:familyName>Smith</urn3:familyName>
+               <urn3:givenName>Sammy</urn3:givenName>
+               <urn3:nameType>
+                  <urn3:code>nameCode</urn3:code>
+                  <urn3:codeSystem>nameCodeSyst</urn3:codeSystem>
+                  <urn3:codeSystemName>nameCodeSystName</urn3:codeSystemName>
+                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
+                  <urn3:displayName>nameCode</urn3:displayName>
+                  <urn3:originalText>nameCode</urn3:originalText>
+               </urn3:nameType>
+               <urn3:secondNameOrInitials>s</urn3:secondNameOrInitials>
+               <urn3:fullName>Sammy S. Smith</urn3:fullName>
+            </urn3:secondWitnessName>
+            <urn3:secondWitnessPhone xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
+               <urn3:areaCode>321</urn3:areaCode>
+               <urn3:countryCode>1</urn3:countryCode>
+               <urn3:extension>5424</urn3:extension>
+               <urn3:localNumber>542-6823</urn3:localNumber>
+               <urn3:phoneNumberType>
+                  <urn3:code>phoneCode</urn3:code>
+                  <urn3:codeSystem>phoneCodeSyst</urn3:codeSystem>
+                  <urn3:codeSystemName>phoneCodeSystName</urn3:codeSystemName>
+                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
+                  <urn3:displayName>phoneCode</urn3:displayName>
+                  <urn3:originalText>phoneCode</urn3:originalText>
+               </urn3:phoneNumberType>
+            </urn3:secondWitnessPhone>
+            <urn3:SSN xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">253-98-7546</urn3:SSN>
+            <urn3:uniquePatientId xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">500000000^^^&amp;1.1&amp;ISO</urn3:uniquePatientId>
+            <urn3:witnessAddress xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
+               <urn3:addressType>
+                  <urn3:code>addrCode</urn3:code>
+                  <urn3:codeSystem>addrCodeSyst</urn3:codeSystem>
+                  <urn3:codeSystemName>addrCodeSystName</urn3:codeSystemName>
+                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
+                  <urn3:displayName>addrCode</urn3:displayName>
+                  <urn3:originalText>addrCode</urn3:originalText>
+               </urn3:addressType>
+               <urn3:city>Burnell</urn3:city>
+               <urn3:country>USA</urn3:country>
+               <urn3:state>FL</urn3:state>
+               <urn3:streetAddress>825 North</urn3:streetAddress>
+               <urn3:zipCode>32184</urn3:zipCode>
+            </urn3:witnessAddress>
+            <urn3:witnessName xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
+               <urn3:familyName>Smith</urn3:familyName>
+               <urn3:givenName>Scott</urn3:givenName>
+               <urn3:nameType>
+                  <urn3:code>nameCode</urn3:code>
+                  <urn3:codeSystem>nameCodeSyst</urn3:codeSystem>
+                  <urn3:codeSystemName>nameCodeSystName</urn3:codeSystemName>
+                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
+                  <urn3:displayName>nameCode</urn3:displayName>
+                  <urn3:originalText>nameCode</urn3:originalText>
+               </urn3:nameType>
+               <urn3:secondNameOrInitials>S.</urn3:secondNameOrInitials>
+               <urn3:fullName>Scott S. Smith</urn3:fullName>
+            </urn3:witnessName>
+            <urn3:witnessPhone xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
+               <urn3:areaCode>321</urn3:areaCode>
+               <urn3:countryCode>1</urn3:countryCode>
+               <urn3:extension>8432</urn3:extension>
+               <urn3:localNumber>985-2239</urn3:localNumber>
+               <urn3:phoneNumberType>
+                  <urn3:code>phoneCode</urn3:code>
+                  <urn3:codeSystem>phoneCodeSyst</urn3:codeSystem>
+                  <urn3:codeSystemName>phoneCodeSystName</urn3:codeSystemName>
+                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
+                  <urn3:displayName>phoneCode</urn3:displayName>
+                  <urn3:originalText>phoneCode</urn3:originalText>
+               </urn3:phoneNumberType>
+            </urn3:witnessPhone>
+            <urn3:userInfo xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
+               <urn3:personName>
+                  <urn3:familyName>Skagerberg</urn3:familyName>
+                  <urn3:givenName>Karl</urn3:givenName>
+                  <urn3:nameType>
+                     <urn3:code>nameCode</urn3:code>
+                     <urn3:codeSystem>nameCodeSyst</urn3:codeSystem>
+                     <urn3:codeSystemName>nameCodeSystName</urn3:codeSystemName>
+                     <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
+                     <urn3:displayName>nameCode</urn3:displayName>
+                     <urn3:originalText>nameCode</urn3:originalText>
+                  </urn3:nameType>
+                  <urn3:secondNameOrInitials>S</urn3:secondNameOrInitials>
+                  <urn3:fullName>Kasrl S. Skagerberg</urn3:fullName>
+               </urn3:personName>
+               <urn3:userName>kskagerb</urn3:userName>
+               <urn3:role>Pharmacy</urn3:role>
+               <urn3:org>
+                  <urn3:description>${#Project#LocalHCDescription}</urn3:description>
+                  <urn3:homeCommunityId>${#Project#LocalHCID}</urn3:homeCommunityId>
+                  <urn3:name>${#Project#LocalHCDescription}</urn3:name>
+               </urn3:org>
+               <urn3:roleCoded>
+                  <urn3:code>307969004</urn3:code>
+                  <urn3:codeSystem>2.16.840.1.113883.6.96</urn3:codeSystem>
+                  <urn3:codeSystemName>SNOMED_CT</urn3:codeSystemName>
+                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
+                  <urn3:displayName>Public Health</urn3:displayName>
+                  <urn3:originalText>Public Health</urn3:originalText>
+               </urn3:roleCoded>
+            </urn3:userInfo>
+            <urn3:authorized xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">true</urn3:authorized>
+            <urn3:purposeOfDisclosureCoded xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
+               <urn3:code>PUBLICHEALTH</urn3:code>
+               <urn3:codeSystem>2.16.840.1.113883.3.18.7.1</urn3:codeSystem>
+               <urn3:codeSystemName>nhin-purpose</urn3:codeSystemName>
+               <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
+               <urn3:displayName>Use or disclosure of Psychotherapy Notes</urn3:displayName>
+               <urn3:originalText>Use or disclosure of Psychotherapy Notes</urn3:originalText>
+            </urn3:purposeOfDisclosureCoded>
+            <urn3:claimFormRef>Ref-Clm-123</urn3:claimFormRef>
+            <urn3:claimFormRaw>YWVvbGlhbQ==</urn3:claimFormRaw>
+            <urn3:samlAuthnStatement xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
+               <urn3:authInstant>2009-04-16T13:15:39Z</urn3:authInstant>
+               <urn3:sessionIndex>987</urn3:sessionIndex>
+               <urn3:authContextClassRef>urn:oasis:names:tc:SAML:2.0:ac:classes:X509</urn3:authContextClassRef>
+               <urn3:subjectLocalityAddress>158.147.185.168</urn3:subjectLocalityAddress>
+               <urn3:subjectLocalityDNSName>cs.myharris.net</urn3:subjectLocalityDNSName>
+            </urn3:samlAuthnStatement>
+            <urn3:samlAuthzDecisionStatement xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
+               <urn3:decision>Permit</urn3:decision>
+               <urn3:resource>https://158.147.185.168:8181/SamlReceiveService/SamlProcessWS</urn3:resource>
+               <urn3:action>TestSaml</urn3:action>
+               <urn3:evidence>
+                  <urn3:assertion>
+                     <urn3:id>40df7c0a-ff3e-4b26-baeb-f2910f6d05a9</urn3:id>
+                     <urn3:issueInstant>2009-04-16T13:10:39.093Z</urn3:issueInstant>
+                     <urn3:version>2.0</urn3:version>
+                     <urn3:issuerFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:X509SubjectName</urn3:issuerFormat>
+                     <urn3:issuer>CN=SAML User,OU=Harris,O=HITS,L=Melbourne,ST=FL,C=US</urn3:issuer>
+                     <urn3:conditions>
+                        <urn3:notBefore>2009-04-16T13:10:39.093Z</urn3:notBefore>
+                        <urn3:notOnOrAfter>2009-12-31T12:00:00.000Z</urn3:notOnOrAfter>
+                     </urn3:conditions>
+                     <urn3:accessConsentPolicy>urn:oid:1.2.3.4</urn3:accessConsentPolicy>
+                     <urn3:instanceAccessConsentPolicy>urn:oid:1.2.3.4.123456789</urn3:instanceAccessConsentPolicy>
+                  </urn3:assertion>
+               </urn3:evidence>
+            </urn3:samlAuthzDecisionStatement>
+         </urn:assertion>
+         <urn:NhinTargetCommunities>
+            <urn3:nhinTargetCommunity>
+               <urn3:homeCommunity>
+                  <urn3:description>${#Project#UDDIhc1description}</urn3:description>
+                  <urn3:homeCommunityId>${#Project#UDDIhcid1}</urn3:homeCommunityId>
+                  <urn3:name>${#Project#UDDIhc1description}</urn3:name>
+               </urn3:homeCommunity>
+               <!--<urn3:homeCommunity>
+                  <urn3:description>${#Project#UDDIhc2description}</urn3:description>
+                  <urn3:homeCommunityId>${#Project#UDDIhcid2}</urn3:homeCommunityId>
+                  <urn3:name>${#Project#UDDIhc2description}</urn3:name>
+               </urn3:homeCommunity> -->
+            </urn3:nhinTargetCommunity>
+         </urn:NhinTargetCommunities>
+      </urn:RespondingGateway_CrossGatewayQueryRequest>
+   </soapenv:Body>
+</soapenv:Envelope>]]></con:request>
+            <con:assertion type="SOAP Response"/>
+            <con:assertion disabled="true" type="Schema Compliance">
+              <con:configuration/>
+            </con:assertion>
+            <con:assertion type="SOAP Fault Assertion"/>
+            <con:assertion name="Severity" type="XPath Match">
+              <con:configuration><path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
+declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
+//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@severity</path><content>urn:oasis:names:tc:ebxml-regrep:ErrorSeverityType:Error</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences><ignoreComments>false</ignoreComments></con:configuration>
+            </con:assertion>
+            <con:assertion name="errorCode" type="XPath Match">
+              <con:configuration><path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
+declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
+//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@errorCode</path><content>XDSUnknownPatientId</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences><ignoreComments>false</ignoreComments></con:configuration>
+            </con:assertion>
+            <con:assertion name="codeContext" type="XPath Match">
+              <con:configuration><path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
+declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
+//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@codeContext</path><content>No patient correlations found.</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences><ignoreComments>false</ignoreComments></con:configuration>
+            </con:assertion>
+            <con:assertion name="Status" type="XPath Match">
+              <con:configuration>
+                <path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
+//ns16:AdhocQueryResponse[1]/@status</path>
+                <content>urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Failure</content>
+                <allowWildcards>false</allowWildcards>
+                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
+              </con:configuration>
+            </con:assertion>
+            <con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:wsaConfig mustUnderstand="NONE" version="200508"/>
+            <con:wsrmConfig version="1.2"/>
+          </con:request>
+        </con:config>
+      </con:testStep>
+      
+      <con:properties>
+        <con:property>
+          <con:name>startDate</con:name>
+          <con:value>2012-07-23T12:29:37Z</con:value>
+        </con:property>
+        <con:property>
+          <con:name>endDate</con:name>
+          <con:value>2012-07-23T12:39:37Z</con:value>
+        </con:property>
+        <con:property>
+          <con:name>sigDate</con:name>
+          <con:value>07/23/2012 12:29:37</con:value>
+        </con:property>
+        <con:property>
+          <con:name>expireDate</con:name>
+          <con:value>2012-08-22T00:00:00Z</con:value>
+        </con:property>
+        <con:property>
+          <con:name>FullPatientID</con:name>
+          <con:value>'D123401^^^&amp;amp;1.1&amp;amp;ISO'</con:value>
+        </con:property>
+      </con:properties>
+      <con:reportParameters/>
+    <con:tearDownScript>FileUtils.restoreToMasterConfiguration(context, log);
+
+def sourceDir = System.env['NHINC_PROPERTIES_DIR'] + "/master/";
+def sourceFile = "uddiConnectionInfo.xml";
+def destDir = System.env['NHINC_PROPERTIES_DIR'];
+def destFile = "uddiConnectionInfo.xml";
+FileUtils.MoveFile(sourceDir, sourceFile, destDir, destFile, context, log);</con:tearDownScript></con:testCase>
     <con:testCase failOnError="true" failTestCaseOnErrors="true" id="e195718a-c6ce-4de8-a813-7b932eb9f174" keepSession="false" maxResults="0" name="Empty Target XML - Correlation for HCID not in UDDI file" searchProperties="true">
       <con:settings/>
       
@@ -65,7 +484,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -84,7 +503,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -93,24 +512,21 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       </con:testStep>
       <con:testStep name="Add Correlation for HCID not in the UDDI" type="groovy">
         <con:settings/>
-        <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+        <con:config><script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
   def localPatientID = context.findProperty("LocalPatientID")
-  def remoteAA = context.findProperty( "testHCID" )
+  def remoteAA = context.findProperty( "testAA" )
   def remotePatientID = context.findProperty("RemotePatientID")
   def insertSql = "insert into " + table + " (correlationId, PatientAssigningAuthorityId, PatientId, CorrelatedPatientAssignAuthId, CorrelatedPatientId) " + 
                    "values (1, ?, ?, ?, ?)"
   sql.executeUpdate(insertSql, [localAA, localPatientID, remoteAA, remotePatientID])
-}</script>
-        </con:config>
+}</script></con:config>
       </con:testStep>
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
-        <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+        <con:config><script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -130,24 +546,23 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
   
   def insertSql = "insert into " + table + " (id, assigningauthorityid, homecommunityid) " + 
                    "values (1, ?, ?)"
-  sql.executeUpdate(insertSql, [remoteAA, remoteHCID])
-  sql.executeUpdate(insertSql, [aa1, hcid1])
-  sql.executeUpdate(insertSql, [aa2, hcid2])
-  sql.executeUpdate(insertSql, [aa3, hcid3])
-  sql.executeUpdate(insertSql, [aa4, hcid4])
+  //sql.executeUpdate(insertSql, [remoteAA, remoteHCID])
+  //sql.executeUpdate(insertSql, [aa1, hcid1])
+  //sql.executeUpdate(insertSql, [aa2, hcid2])
+  //sql.executeUpdate(insertSql, [aa3, hcid3])
+  //sql.executeUpdate(insertSql, [aa4, hcid4])
   sql.executeUpdate(insertSql, [testaa, testhcid])
   
-}</script>
-        </con:config>
+}</script></con:config>
       </con:testStep>
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
             <con:settings>
-              <con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/&gt;</con:setting>
+              <con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting>
             </con:settings>
             <con:encoding>UTF-8</con:encoding>
             <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
@@ -420,19 +835,19 @@ declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
       <con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-29T23:39:07Z</con:value>
+          <con:value>2012-07-23T12:29:38Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-29T23:49:07Z</con:value>
+          <con:value>2012-07-23T12:39:38Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/29/2012 23:39:07</con:value>
+          <con:value>07/23/2012 12:29:38</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-30T00:00:00Z</con:value>
+          <con:value>2012-08-22T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -486,7 +901,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -505,7 +920,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -515,7 +930,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+          <script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -547,11 +962,11 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       </con:testStep>
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
-            <con:settings/>
+            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings>
             <con:encoding>UTF-8</con:encoding>
             <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
             <con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope" xmlns:urn="urn:gov:hhs:fha:nhinc:common:nhinccommonentity" xmlns:urn1="urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0" xmlns:urn2="urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0" xmlns:urn3="urn:gov:hhs:fha:nhinc:common:nhinccommon">
@@ -792,24 +1207,14 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
             </con:assertion>
             <con:assertion type="SOAP Fault Assertion"/>
             <con:assertion name="Severity" type="XPath Match">
-              <con:configuration>
-                <path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
+              <con:configuration><path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
 declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
-//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@severity</path>
-                <content>Error</content>
-                <allowWildcards>false</allowWildcards>
-                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
-              </con:configuration>
+//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@severity</path><content>urn:oasis:names:tc:ebxml-regrep:ErrorSeverityType:Error</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences><ignoreComments>false</ignoreComments></con:configuration>
             </con:assertion>
             <con:assertion name="errorCode" type="XPath Match">
-              <con:configuration>
-                <path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
+              <con:configuration><path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
 declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
-//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@errorCode</path>
-                <content>XDSRepositoryError</content>
-                <allowWildcards>false</allowWildcards>
-                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
-              </con:configuration>
+//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@errorCode</path><content>XDSUnknownPatientId</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences><ignoreComments>false</ignoreComments></con:configuration>
             </con:assertion>
             <con:assertion name="codeContext" type="XPath Match">
               <con:configuration>
@@ -839,19 +1244,19 @@ declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
       <con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-29T23:39:12Z</con:value>
+          <con:value>2012-07-23T12:29:39Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-29T23:49:12Z</con:value>
+          <con:value>2012-07-23T12:39:39Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/29/2012 23:39:12</con:value>
+          <con:value>07/23/2012 12:29:39</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-30T00:00:00Z</con:value>
+          <con:value>2012-08-22T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -865,440 +1270,7 @@ def sourceDir = System.env['NHINC_PROPERTIES_DIR'] + "/master/";
 def sourceFile = "uddiConnectionInfo.xml";
 def destDir = System.env['NHINC_PROPERTIES_DIR'];
 def destFile = "uddiConnectionInfo.xml";
-FileUtils.MoveFile(sourceDir, sourceFile, destDir, destFile, context, log);</con:tearDownScript></con:testCase>
-    <con:testCase failOnError="true" failTestCaseOnErrors="true" id="2ac7a10e-f0e6-4d32-b45d-6874809b4e08" keepSession="false" maxResults="0" name="HCID Happy Path - No Patient Correlations" searchProperties="true">
-      <con:settings/>
-      
-      <con:testStep name="Copy uddiConnectionInfo" type="groovy">
-        <con:settings/>
-        <con:config>
-          <script>def groovyUtils = new com.eviware.soapui.support.GroovyUtils( context )
-def testCase = testRunner.getTestCase()
-def testSuite = testCase.getTestSuite()
-def project = testSuite.getProject()
-def projectPropFullFile = project.getPath()
-def projectPropPath = groovyUtils.projectPath
-
-def sourceDir = projectPropPath;
-def sourceFile = "UDDIcopy-uddiConnectionInfo.xml";
-//def destDir = context.findProperty( "NHINGatewayConfigDir" );
-def destDir = System.env['NHINC_PROPERTIES_DIR'];
-def destFile = "uddiConnectionInfo.xml";
-
-log.info(sourceDir +'; ' + sourceFile  +'; ' + destDir +'; ' + destFile );
-
-FileUtils.MoveFile(sourceDir, sourceFile, destDir, destFile, context, log);</script>
-        </con:config>
-      </con:testStep>
-      <con:testStep name="update config" type="groovy">
-        <con:settings/>
-        <con:config>
-          <script>//def destConfigFileLocation = dataSource.getPropertyValue("NHINGatewayConfigDir");
-def destConfigFileLocation = System.env['NHINC_PROPERTIES_DIR'];
-
-void UpdateProperty(String directory, String filename, String propertyKey, String propertyValue,context,log) {
-			  
-   log.info("begin UpdateProperty; directory='" + directory + "';filename='" + filename + "';key='" + propertyKey + "';value='" + propertyValue + "';");
-   File file = new File(directory,filename);
-   Properties properties = new Properties();
-   FileInputStream frPropFile = new FileInputStream(file);
-   properties.load(frPropFile);
-   properties.setProperty(propertyKey, propertyValue);
-   FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
-   properties = null;
-}
-
-UpdateProperty(destConfigFileLocation,"gateway.properties","documentQueryQuerySelf","false",context,log);</script>
-        </con:config>
-      </con:testStep>
-      <con:testStep name="Generate patient ID for Doc Query" type="groovy">
-        <con:settings/>
-        <con:config>
-          <script>def localAA = context.findProperty('LocalAA')
-def dqPatientID = context.findProperty('DQPatientID')
-
-context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;${localAA}&amp;amp;ISO'");</script>
-        </con:config>
-      </con:testStep>
-      <con:testStep name="Clear Correlation Table" type="groovy">
-        <con:settings/>
-        <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
-  def table = context.findProperty('PatientCorrelationTable')
-  
-  sql.execute('delete from ' + table)
-}</script>
-        </con:config>
-      </con:testStep>
-      <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
-        <con:settings/>
-        <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
-  def table = context.findProperty('AAMappingTable')
-  
-  sql.execute('delete from ' + table)
-
-  def remoteAA = context.findProperty( "RemoteAA" )
-  def remoteHCID = context.findProperty("RemoteHCID")
-  def hcid1 = context.findProperty("UDDIhcid1")
-  def hcid2 = context.findProperty("UDDIhcid2")
-  def hcid3 = context.findProperty("UDDIhcid3")
-  def hcid4 = context.findProperty("UDDIhcid4")
-  def testhcid = context.findProperty("testHCID")
-  def aa1 = context.findProperty("UDDIaa1")
-  def aa2 = context.findProperty("UDDIaa2")
-  def aa3 = context.findProperty("UDDIaa3")
-  def aa4 = context.findProperty("UDDIaa4")
-  def testaa = context.findProperty("testAA")
-  
-  def insertSql = "insert into " + table + " (id, assigningauthorityid, homecommunityid) " + 
-                   "values (1, ?, ?)"
-  sql.executeUpdate(insertSql, [remoteAA, remoteHCID])
-  sql.executeUpdate(insertSql, [aa1, hcid1])
-  sql.executeUpdate(insertSql, [aa2, hcid2])
-  sql.executeUpdate(insertSql, [aa3, hcid3])
-  sql.executeUpdate(insertSql, [aa4, hcid4])
-  sql.executeUpdate(insertSql, [testaa, testhcid])
-  
-}</script>
-        </con:config>
-      </con:testStep>
-      <con:testStep name="Document Query" type="request">
-        <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
-          <con:interface>EntityDocQueryBindingSoap</con:interface>
-          <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
-          <con:request name="Document Query">
-            <con:settings/>
-            <con:encoding>UTF-8</con:encoding>
-            <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
-            <con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope" xmlns:urn="urn:gov:hhs:fha:nhinc:common:nhinccommonentity" xmlns:urn1="urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0" xmlns:urn2="urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0" xmlns:urn3="urn:gov:hhs:fha:nhinc:common:nhinccommon">
-   <soapenv:Header/>
-   <soapenv:Body projectName="DocQueryTestsForUDDI" testCase="HCID Happy Path - No Patient Correlations">
-      <urn:RespondingGateway_CrossGatewayQueryRequest>
-         <urn1:AdhocQueryRequest federated="false" startIndex="0" maxResults="-1">
-            <urn1:ResponseOption returnType="RegistryObject" returnComposedObjects="false"/>
-            <urn2:AdhocQuery home="urn:oid:2.16.840.1.113883.3.200" id="urn:uuid:14d4debf-8f97-4251-9a74-a90016b0af0d">
-               <urn2:Slot name="$XDSDocumentEntryPatientId">
-                  <urn2:ValueList>
-                     <urn2:Value>${#TestCase#FullPatientID}</urn2:Value>
-                  </urn2:ValueList>
-               </urn2:Slot>
-            </urn2:AdhocQuery>
-         </urn1:AdhocQueryRequest>
-         <urn:assertion>
-            <urn3:address xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
-               <urn3:addressType>
-                  <urn3:code>AddrCode</urn3:code>
-                  <urn3:codeSystem>AddrCodeSyst</urn3:codeSystem>
-                  <urn3:codeSystemName>AddrCodeSystName</urn3:codeSystemName>
-                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
-                  <urn3:displayName>AddrCode</urn3:displayName>
-                  <urn3:originalText>AddrCode</urn3:originalText>
-               </urn3:addressType>
-               <urn3:city>AddrCity</urn3:city>
-               <urn3:country>AddrCountry</urn3:country>
-               <urn3:state>AddrState</urn3:state>
-               <urn3:streetAddress>AddrStreet</urn3:streetAddress>
-               <urn3:zipCode>AddrZip</urn3:zipCode>
-            </urn3:address>
-            <urn3:dateOfBirth xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">06/04/1959 05:21:00</urn3:dateOfBirth>
-            <urn3:dateOfSignature xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">${#Project#sigDate}</urn3:dateOfSignature>
-            <urn3:expirationDate xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">${#Project#expireDate}</urn3:expirationDate>
-            <urn3:explanationNonClaimantSignature xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">Electronic</urn3:explanationNonClaimantSignature>
-            <urn3:haveSecondWitnessSignature xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">false</urn3:haveSecondWitnessSignature>
-            <urn3:haveSignature xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">false</urn3:haveSignature>
-            <urn3:haveWitnessSignature xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">false</urn3:haveWitnessSignature>
-            <urn3:homeCommunity xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
-               <urn3:description>${#Project#LocalHCDescription}</urn3:description>
-               <urn3:homeCommunityId>${#Project#LocalHCID}</urn3:homeCommunityId>
-               <urn3:name>${#Project#LocalHCDescription}</urn3:name>
-            </urn3:homeCommunity>
-            <urn3:personName xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
-               <urn3:familyName>Smith</urn3:familyName>
-               <urn3:givenName>Sandy</urn3:givenName>
-               <urn3:nameType>
-                  <urn3:code>nameCode</urn3:code>
-                  <urn3:codeSystem>nameCodeSyst</urn3:codeSystem>
-                  <urn3:codeSystemName>nameCodeSystName</urn3:codeSystemName>
-                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
-                  <urn3:displayName>nameCode</urn3:displayName>
-                  <urn3:originalText>nameCode</urn3:originalText>
-               </urn3:nameType>
-               <urn3:secondNameOrInitials>S</urn3:secondNameOrInitials>
-               <urn3:fullName>Sandy S. Smith</urn3:fullName>
-            </urn3:personName>
-            <urn3:phoneNumber xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
-               <urn3:areaCode>321</urn3:areaCode>
-               <urn3:countryCode>1</urn3:countryCode>
-               <urn3:extension>5436</urn3:extension>
-               <urn3:localNumber>253-6849</urn3:localNumber>
-               <urn3:phoneNumberType>
-                  <urn3:code>phoneCode</urn3:code>
-                  <urn3:codeSystem>phoneCodeSyst</urn3:codeSystem>
-                  <urn3:codeSystemName>phoneCodeSystName</urn3:codeSystemName>
-                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
-                  <urn3:displayName>phoneCode</urn3:displayName>
-                  <urn3:originalText>phoneCode</urn3:originalText>
-               </urn3:phoneNumberType>
-            </urn3:phoneNumber>
-            <urn3:purposeOfDisclosure xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">TREATMENT</urn3:purposeOfDisclosure>
-            <urn3:secondWitnessAddress xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
-               <urn3:addressType>
-                  <urn3:code>AddrCode</urn3:code>
-                  <urn3:codeSystem>AddrCodeSyst</urn3:codeSystem>
-                  <urn3:codeSystemName>AddrCodeSystName</urn3:codeSystemName>
-                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
-                  <urn3:displayName>AddrCode</urn3:displayName>
-                  <urn3:originalText>AddrCode</urn3:originalText>
-               </urn3:addressType>
-               <urn3:city>Addr2City</urn3:city>
-               <urn3:country>Addr2Country</urn3:country>
-               <urn3:state>Addr2State</urn3:state>
-               <urn3:streetAddress>Addr2Street</urn3:streetAddress>
-               <urn3:zipCode>Addr2Zip</urn3:zipCode>
-            </urn3:secondWitnessAddress>
-            <urn3:secondWitnessName xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
-               <urn3:familyName>Smith</urn3:familyName>
-               <urn3:givenName>Sammy</urn3:givenName>
-               <urn3:nameType>
-                  <urn3:code>nameCode</urn3:code>
-                  <urn3:codeSystem>nameCodeSyst</urn3:codeSystem>
-                  <urn3:codeSystemName>nameCodeSystName</urn3:codeSystemName>
-                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
-                  <urn3:displayName>nameCode</urn3:displayName>
-                  <urn3:originalText>nameCode</urn3:originalText>
-               </urn3:nameType>
-               <urn3:secondNameOrInitials>s</urn3:secondNameOrInitials>
-               <urn3:fullName>Sammy S. Smith</urn3:fullName>
-            </urn3:secondWitnessName>
-            <urn3:secondWitnessPhone xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
-               <urn3:areaCode>321</urn3:areaCode>
-               <urn3:countryCode>1</urn3:countryCode>
-               <urn3:extension>5424</urn3:extension>
-               <urn3:localNumber>542-6823</urn3:localNumber>
-               <urn3:phoneNumberType>
-                  <urn3:code>phoneCode</urn3:code>
-                  <urn3:codeSystem>phoneCodeSyst</urn3:codeSystem>
-                  <urn3:codeSystemName>phoneCodeSystName</urn3:codeSystemName>
-                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
-                  <urn3:displayName>phoneCode</urn3:displayName>
-                  <urn3:originalText>phoneCode</urn3:originalText>
-               </urn3:phoneNumberType>
-            </urn3:secondWitnessPhone>
-            <urn3:SSN xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">253-98-7546</urn3:SSN>
-            <urn3:uniquePatientId xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">500000000^^^&amp;1.1&amp;ISO</urn3:uniquePatientId>
-            <urn3:witnessAddress xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
-               <urn3:addressType>
-                  <urn3:code>addrCode</urn3:code>
-                  <urn3:codeSystem>addrCodeSyst</urn3:codeSystem>
-                  <urn3:codeSystemName>addrCodeSystName</urn3:codeSystemName>
-                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
-                  <urn3:displayName>addrCode</urn3:displayName>
-                  <urn3:originalText>addrCode</urn3:originalText>
-               </urn3:addressType>
-               <urn3:city>Burnell</urn3:city>
-               <urn3:country>USA</urn3:country>
-               <urn3:state>FL</urn3:state>
-               <urn3:streetAddress>825 North</urn3:streetAddress>
-               <urn3:zipCode>32184</urn3:zipCode>
-            </urn3:witnessAddress>
-            <urn3:witnessName xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
-               <urn3:familyName>Smith</urn3:familyName>
-               <urn3:givenName>Scott</urn3:givenName>
-               <urn3:nameType>
-                  <urn3:code>nameCode</urn3:code>
-                  <urn3:codeSystem>nameCodeSyst</urn3:codeSystem>
-                  <urn3:codeSystemName>nameCodeSystName</urn3:codeSystemName>
-                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
-                  <urn3:displayName>nameCode</urn3:displayName>
-                  <urn3:originalText>nameCode</urn3:originalText>
-               </urn3:nameType>
-               <urn3:secondNameOrInitials>S.</urn3:secondNameOrInitials>
-               <urn3:fullName>Scott S. Smith</urn3:fullName>
-            </urn3:witnessName>
-            <urn3:witnessPhone xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
-               <urn3:areaCode>321</urn3:areaCode>
-               <urn3:countryCode>1</urn3:countryCode>
-               <urn3:extension>8432</urn3:extension>
-               <urn3:localNumber>985-2239</urn3:localNumber>
-               <urn3:phoneNumberType>
-                  <urn3:code>phoneCode</urn3:code>
-                  <urn3:codeSystem>phoneCodeSyst</urn3:codeSystem>
-                  <urn3:codeSystemName>phoneCodeSystName</urn3:codeSystemName>
-                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
-                  <urn3:displayName>phoneCode</urn3:displayName>
-                  <urn3:originalText>phoneCode</urn3:originalText>
-               </urn3:phoneNumberType>
-            </urn3:witnessPhone>
-            <urn3:userInfo xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
-               <urn3:personName>
-                  <urn3:familyName>Skagerberg</urn3:familyName>
-                  <urn3:givenName>Karl</urn3:givenName>
-                  <urn3:nameType>
-                     <urn3:code>nameCode</urn3:code>
-                     <urn3:codeSystem>nameCodeSyst</urn3:codeSystem>
-                     <urn3:codeSystemName>nameCodeSystName</urn3:codeSystemName>
-                     <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
-                     <urn3:displayName>nameCode</urn3:displayName>
-                     <urn3:originalText>nameCode</urn3:originalText>
-                  </urn3:nameType>
-                  <urn3:secondNameOrInitials>S</urn3:secondNameOrInitials>
-                  <urn3:fullName>Kasrl S. Skagerberg</urn3:fullName>
-               </urn3:personName>
-               <urn3:userName>kskagerb</urn3:userName>
-               <urn3:role>Pharmacy</urn3:role>
-               <urn3:org>
-                  <urn3:description>${#Project#LocalHCDescription}</urn3:description>
-                  <urn3:homeCommunityId>${#Project#LocalHCID}</urn3:homeCommunityId>
-                  <urn3:name>${#Project#LocalHCDescription}</urn3:name>
-               </urn3:org>
-               <urn3:roleCoded>
-                  <urn3:code>307969004</urn3:code>
-                  <urn3:codeSystem>2.16.840.1.113883.6.96</urn3:codeSystem>
-                  <urn3:codeSystemName>SNOMED_CT</urn3:codeSystemName>
-                  <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
-                  <urn3:displayName>Public Health</urn3:displayName>
-                  <urn3:originalText>Public Health</urn3:originalText>
-               </urn3:roleCoded>
-            </urn3:userInfo>
-            <urn3:authorized xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">true</urn3:authorized>
-            <urn3:purposeOfDisclosureCoded xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
-               <urn3:code>PUBLICHEALTH</urn3:code>
-               <urn3:codeSystem>2.16.840.1.113883.3.18.7.1</urn3:codeSystem>
-               <urn3:codeSystemName>nhin-purpose</urn3:codeSystemName>
-               <urn3:codeSystemVersion>1.0</urn3:codeSystemVersion>
-               <urn3:displayName>Use or disclosure of Psychotherapy Notes</urn3:displayName>
-               <urn3:originalText>Use or disclosure of Psychotherapy Notes</urn3:originalText>
-            </urn3:purposeOfDisclosureCoded>
-            <urn3:claimFormRef>Ref-Clm-123</urn3:claimFormRef>
-            <urn3:claimFormRaw>YWVvbGlhbQ==</urn3:claimFormRaw>
-            <urn3:samlAuthnStatement xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
-               <urn3:authInstant>2009-04-16T13:15:39Z</urn3:authInstant>
-               <urn3:sessionIndex>987</urn3:sessionIndex>
-               <urn3:authContextClassRef>urn:oasis:names:tc:SAML:2.0:ac:classes:X509</urn3:authContextClassRef>
-               <urn3:subjectLocalityAddress>158.147.185.168</urn3:subjectLocalityAddress>
-               <urn3:subjectLocalityDNSName>cs.myharris.net</urn3:subjectLocalityDNSName>
-            </urn3:samlAuthnStatement>
-            <urn3:samlAuthzDecisionStatement xmlns:urn1="urn:gov:hhs:fha:nhinc:common:nhinccommon">
-               <urn3:decision>Permit</urn3:decision>
-               <urn3:resource>https://158.147.185.168:8181/SamlReceiveService/SamlProcessWS</urn3:resource>
-               <urn3:action>TestSaml</urn3:action>
-               <urn3:evidence>
-                  <urn3:assertion>
-                     <urn3:id>40df7c0a-ff3e-4b26-baeb-f2910f6d05a9</urn3:id>
-                     <urn3:issueInstant>2009-04-16T13:10:39.093Z</urn3:issueInstant>
-                     <urn3:version>2.0</urn3:version>
-                     <urn3:issuerFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:X509SubjectName</urn3:issuerFormat>
-                     <urn3:issuer>CN=SAML User,OU=Harris,O=HITS,L=Melbourne,ST=FL,C=US</urn3:issuer>
-                     <urn3:conditions>
-                        <urn3:notBefore>2009-04-16T13:10:39.093Z</urn3:notBefore>
-                        <urn3:notOnOrAfter>2009-12-31T12:00:00.000Z</urn3:notOnOrAfter>
-                     </urn3:conditions>
-                     <urn3:accessConsentPolicy>urn:oid:1.2.3.4</urn3:accessConsentPolicy>
-                     <urn3:instanceAccessConsentPolicy>urn:oid:1.2.3.4.123456789</urn3:instanceAccessConsentPolicy>
-                  </urn3:assertion>
-               </urn3:evidence>
-            </urn3:samlAuthzDecisionStatement>
-         </urn:assertion>
-         <urn:NhinTargetCommunities>
-            <urn3:nhinTargetCommunity>
-               <urn3:homeCommunity>
-                  <urn3:description>${#Project#UDDIhc1description}</urn3:description>
-                  <urn3:homeCommunityId>${#Project#UDDIhcid1}</urn3:homeCommunityId>
-                  <urn3:name>${#Project#UDDIhc1description}</urn3:name>
-               </urn3:homeCommunity>
-               <!--<urn3:homeCommunity>
-                  <urn3:description>${#Project#UDDIhc2description}</urn3:description>
-                  <urn3:homeCommunityId>${#Project#UDDIhcid2}</urn3:homeCommunityId>
-                  <urn3:name>${#Project#UDDIhc2description}</urn3:name>
-               </urn3:homeCommunity> -->
-            </urn3:nhinTargetCommunity>
-         </urn:NhinTargetCommunities>
-      </urn:RespondingGateway_CrossGatewayQueryRequest>
-   </soapenv:Body>
-</soapenv:Envelope>]]></con:request>
-            <con:assertion type="SOAP Response"/>
-            <con:assertion disabled="true" type="Schema Compliance">
-              <con:configuration/>
-            </con:assertion>
-            <con:assertion type="SOAP Fault Assertion"/>
-            <con:assertion name="Severity" type="XPath Match">
-              <con:configuration>
-                <path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
-declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
-//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@severity</path>
-                <content>Error</content>
-                <allowWildcards>false</allowWildcards>
-                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
-              </con:configuration>
-            </con:assertion>
-            <con:assertion name="errorCode" type="XPath Match">
-              <con:configuration>
-                <path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
-declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
-//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@errorCode</path>
-                <content>XDSRepositoryError</content>
-                <allowWildcards>false</allowWildcards>
-                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
-              </con:configuration>
-            </con:assertion>
-            <con:assertion name="codeContext" type="XPath Match">
-              <con:configuration>
-                <path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
-declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
-//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@codeContext</path>
-                <content>No patient correlations found.</content>
-                <allowWildcards>false</allowWildcards>
-                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
-              </con:configuration>
-            </con:assertion>
-            <con:assertion name="Status" type="XPath Match">
-              <con:configuration>
-                <path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
-//ns16:AdhocQueryResponse[1]/@status</path>
-                <content>urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Failure</content>
-                <allowWildcards>false</allowWildcards>
-                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
-              </con:configuration>
-            </con:assertion>
-            <con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:wsaConfig mustUnderstand="NONE" version="200508"/>
-            <con:wsrmConfig version="1.2"/>
-          </con:request>
-        </con:config>
-      </con:testStep>
-      
-      <con:properties>
-        <con:property>
-          <con:name>startDate</con:name>
-          <con:value>2012-02-29T23:39:13Z</con:value>
-        </con:property>
-        <con:property>
-          <con:name>endDate</con:name>
-          <con:value>2012-02-29T23:49:13Z</con:value>
-        </con:property>
-        <con:property>
-          <con:name>sigDate</con:name>
-          <con:value>02/29/2012 23:39:13</con:value>
-        </con:property>
-        <con:property>
-          <con:name>expireDate</con:name>
-          <con:value>2012-03-30T00:00:00Z</con:value>
-        </con:property>
-        <con:property>
-          <con:name>FullPatientID</con:name>
-          <con:value>'D123401^^^&amp;amp;1.1&amp;amp;ISO'</con:value>
-        </con:property>
-      </con:properties>
-      <con:reportParameters/>
-    <con:tearDownScript>FileUtils.restoreToMasterConfiguration(context, log);
-
-def sourceDir = System.env['NHINC_PROPERTIES_DIR'] + "/master/";
-def sourceFile = "uddiConnectionInfo.xml";
-def destDir = System.env['NHINC_PROPERTIES_DIR'];
-def destFile = "uddiConnectionInfo.xml";
-FileUtils.MoveFile(sourceDir, sourceFile, destDir, destFile, context, log);</con:tearDownScript></con:testCase>
+//FileUtils.MoveFile(sourceDir, sourceFile, destDir, destFile, context, log);</con:tearDownScript></con:testCase>
     <con:testCase failOnError="true" failTestCaseOnErrors="true" id="7b1a13e3-8d02-46ed-bef0-981f0f967fc7" keepSession="false" maxResults="0" name="HCID Happy Path - Correlation for HCID not in UDDI file/target XML" searchProperties="true">
       <con:settings/>
       
@@ -1338,7 +1310,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -1357,7 +1329,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -1367,7 +1339,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Add Correlation for HCID not in the UDDI" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -1382,8 +1354,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       </con:testStep>
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
-        <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+        <con:config><script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -1403,23 +1374,22 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
   
   def insertSql = "insert into " + table + " (id, assigningauthorityid, homecommunityid) " + 
                    "values (1, ?, ?)"
-  sql.executeUpdate(insertSql, [remoteAA, remoteHCID])
-  sql.executeUpdate(insertSql, [aa1, hcid1])
-  sql.executeUpdate(insertSql, [aa2, hcid2])
-  sql.executeUpdate(insertSql, [aa3, hcid3])
-  sql.executeUpdate(insertSql, [aa4, hcid4])
+  //sql.executeUpdate(insertSql, [remoteAA, remoteHCID])
+  //sql.executeUpdate(insertSql, [aa1, hcid1])
+  //sql.executeUpdate(insertSql, [aa2, hcid2])
+  //sql.executeUpdate(insertSql, [aa3, hcid3])
+  //sql.executeUpdate(insertSql, [aa4, hcid4])
   sql.executeUpdate(insertSql, [testaa, testhcid])
   
-}</script>
-        </con:config>
+}</script></con:config>
       </con:testStep>
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
-            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/&gt;</con:setting></con:settings>
+            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings>
             <con:encoding>UTF-8</con:encoding>
             <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
             <con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope" xmlns:urn="urn:gov:hhs:fha:nhinc:common:nhinccommonentity" xmlns:urn1="urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0" xmlns:urn2="urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0" xmlns:urn3="urn:gov:hhs:fha:nhinc:common:nhinccommon">
@@ -1677,17 +1647,12 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
             <con:assertion type="SOAP Fault Assertion"/>
             <con:assertion name="Status" type="XPath Match">
               <con:configuration><path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
-//ns16:AdhocQueryResponse[1]/@status</path><content>urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Success</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences></con:configuration>
+//ns16:AdhocQueryResponse[1]/@status</path><content>urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Failure</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences><ignoreComments>false</ignoreComments></con:configuration>
             </con:assertion>
             <con:assertion name="Severity" type="XPath Match">
-              <con:configuration>
-                <path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
+              <con:configuration><path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
 declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
-//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@severity</path>
-                <content>Error</content>
-                <allowWildcards>false</allowWildcards>
-                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
-              </con:configuration>
+//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@severity</path><content>urn:oasis:names:tc:ebxml-regrep:ErrorSeverityType:Error</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences></con:configuration>
             </con:assertion>
             <con:assertion name="errorCode" type="XPath Match">
               <con:configuration>
@@ -1713,19 +1678,19 @@ declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
       <con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-29T23:46:13Z</con:value>
+          <con:value>2012-07-23T12:30:56Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-29T23:56:13Z</con:value>
+          <con:value>2012-07-23T12:40:56Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/29/2012 23:46:13</con:value>
+          <con:value>07/23/2012 12:30:56</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-30T00:00:00Z</con:value>
+          <con:value>2012-08-22T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -1779,7 +1744,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -1798,7 +1763,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -1808,7 +1773,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Add Correlation for HCID in the UDDI" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -1827,7 +1792,7 @@ sql.executeUpdate(insertSql, [2, localAA, localPatientID, uddiVA3, remotePatient
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+          <script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -1873,11 +1838,11 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
       </con:testStep>
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
-            <con:settings/>
+            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings>
             <con:encoding>UTF-8</con:encoding>
             <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
             <con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope" xmlns:urn="urn:gov:hhs:fha:nhinc:common:nhinccommonentity" xmlns:urn1="urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0" xmlns:urn2="urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0" xmlns:urn3="urn:gov:hhs:fha:nhinc:common:nhinccommon">
@@ -2129,7 +2094,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
    </soapenv:Body>
 </soapenv:Envelope>]]></con:request>
             <con:assertion type="SOAP Response"/>
-            <con:assertion type="Schema Compliance">
+            <con:assertion disabled="true" type="Schema Compliance">
               <con:configuration/>
             </con:assertion>
             <con:assertion type="SOAP Fault Assertion"/>
@@ -2144,7 +2109,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
             </con:assertion>
             <con:assertion disabled="true" type="Simple Contains">
               <con:configuration>
-                <token>&lt;ns5:RegistryObjectList/&gt;</token>
+                <token>&lt;ns5:RegistryObjectList/></token>
                 <ignoreCase>false</ignoreCase>
                 <useRegEx>false</useRegEx>
               </con:configuration>
@@ -2164,19 +2129,19 @@ count(//ns6:AdhocQueryResponse[1]/ns3:RegistryObjectList[1]/ns3:ExtrinsicObject)
       <con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-29T23:39:17Z</con:value>
+          <con:value>2012-07-23T12:29:40Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-29T23:49:17Z</con:value>
+          <con:value>2012-07-23T12:39:40Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/29/2012 23:39:17</con:value>
+          <con:value>07/23/2012 12:29:40</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-30T00:00:00Z</con:value>
+          <con:value>2012-08-22T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -2230,7 +2195,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -2249,7 +2214,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -2258,27 +2223,25 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       </con:testStep>
       <con:testStep name="Add Correlation for HCID in the UDDI" type="groovy">
         <con:settings/>
-        <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+        <con:config><script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
   def localPatientID = context.findProperty("LocalPatientID")
   def uddiVA1 = context.findProperty( "UDDIhcid1" )
-   def uddiVA3 = context.findProperty( "UDDIhcid3" )
+  def uddiVA3 = context.findProperty( "UDDIhcid3" )
   def remotePatientID = context.findProperty("RemotePatientID")
   def insertSql = "insert into " + table + " (correlationId, PatientAssigningAuthorityId, PatientId, CorrelatedPatientAssignAuthId, CorrelatedPatientId, CorrelationExpirationDate) " + 
                    "values (?, ?, ?, ?, ?, ?)"
                  
 sql.executeUpdate(insertSql, [1, localAA, localPatientID, uddiVA1, remotePatientID,'2010-01-01 00:00:00'])
 
-}</script>
-        </con:config>
+}</script></con:config>
       </con:testStep>
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+          <script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -2322,11 +2285,11 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
       </con:testStep>
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
-            <con:settings/>
+            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings>
             <con:encoding>UTF-8</con:encoding>
             <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
             <con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope" xmlns:urn="urn:gov:hhs:fha:nhinc:common:nhinccommonentity" xmlns:urn1="urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0" xmlns:urn2="urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0" xmlns:urn3="urn:gov:hhs:fha:nhinc:common:nhinccommon">
@@ -2586,7 +2549,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
             </con:assertion>
             <con:assertion disabled="true" type="Simple Contains">
               <con:configuration>
-                <token>&lt;ns5:RegistryObjectList/&gt;</token>
+                <token>&lt;ns5:RegistryObjectList/></token>
                 <ignoreCase>false</ignoreCase>
                 <useRegEx>false</useRegEx>
               </con:configuration>
@@ -2602,24 +2565,14 @@ count(//ns6:AdhocQueryResponse[1]/ns3:RegistryObjectList[1]/ns3:ExtrinsicObject)
               </con:configuration>
             </con:assertion>
             <con:assertion type="XPath Match">
-              <con:configuration>
-                <path>declare namespace ns11='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
+              <con:configuration><path>declare namespace ns11='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
 declare namespace ns8='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
-//ns11:AdhocQueryResponse[1]/ns8:RegistryErrorList[1]/ns8:RegistryError[1]/@severity</path>
-                <content>Error</content>
-                <allowWildcards>false</allowWildcards>
-                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
-              </con:configuration>
+//ns11:AdhocQueryResponse[1]/ns8:RegistryErrorList[1]/ns8:RegistryError[1]/@severity</path><content>urn:oasis:names:tc:ebxml-regrep:ErrorSeverityType:Error</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences><ignoreComments>false</ignoreComments></con:configuration>
             </con:assertion>
             <con:assertion type="XPath Match">
-              <con:configuration>
-                <path>declare namespace ns11='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
+              <con:configuration><path>declare namespace ns11='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
 declare namespace ns8='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
-//ns11:AdhocQueryResponse[1]/ns8:RegistryErrorList[1]/ns8:RegistryError[1]/@errorCode</path>
-                <content>XDSRepositoryError</content>
-                <allowWildcards>false</allowWildcards>
-                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
-              </con:configuration>
+//ns11:AdhocQueryResponse[1]/ns8:RegistryErrorList[1]/ns8:RegistryError[1]/@errorCode</path><content>XDSUnknownPatientId</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences><ignoreComments>false</ignoreComments></con:configuration>
             </con:assertion>
             <con:assertion type="XPath Match">
               <con:configuration>
@@ -2640,19 +2593,19 @@ declare namespace ns8='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
       <con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-29T23:39:29Z</con:value>
+          <con:value>2012-07-23T12:29:42Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-29T23:49:29Z</con:value>
+          <con:value>2012-07-23T12:39:42Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/29/2012 23:39:29</con:value>
+          <con:value>07/23/2012 12:29:42</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-30T00:00:00Z</con:value>
+          <con:value>2012-08-22T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -2706,7 +2659,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -2725,7 +2678,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -2735,7 +2688,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+          <script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -2767,7 +2720,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       </con:testStep>
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
@@ -3038,19 +2991,19 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-29T23:39:30Z</con:value>
+          <con:value>2012-07-23T12:29:42Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-29T23:49:30Z</con:value>
+          <con:value>2012-07-23T12:39:42Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/29/2012 23:39:30</con:value>
+          <con:value>07/23/2012 12:29:42</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-30T00:00:00Z</con:value>
+          <con:value>2012-08-22T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -3104,7 +3057,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -3123,7 +3076,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -3133,7 +3086,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Add Correlation for HCID not in the UDDI" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -3149,7 +3102,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+          <script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -3181,11 +3134,11 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       </con:testStep>
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
-            <con:settings/>
+            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings>
             <con:encoding>UTF-8</con:encoding>
             <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
             <con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope" xmlns:urn="urn:gov:hhs:fha:nhinc:common:nhinccommonentity" xmlns:urn1="urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0" xmlns:urn2="urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0" xmlns:urn3="urn:gov:hhs:fha:nhinc:common:nhinccommon">
@@ -3435,15 +3388,10 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
             </con:assertion>
             <con:assertion type="SOAP Fault Assertion"/>
             <con:assertion name="Status" type="XPath Match">
-              <con:configuration>
-                <path>declare namespace ns13='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
-//ns13:AdhocQueryResponse[1]/@status</path>
-                <content>urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Success</content>
-                <allowWildcards>false</allowWildcards>
-                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
-              </con:configuration>
+              <con:configuration><path>declare namespace ns13='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
+//ns13:AdhocQueryResponse[1]/@status</path><content>urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Failure</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences><ignoreComments>false</ignoreComments></con:configuration>
             </con:assertion>
-            <con:wsaConfig mustUnderstand="NONE" version="200508"/>
+            <con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:wsaConfig mustUnderstand="NONE" version="200508"/>
             <con:wsrmConfig version="1.2"/>
           </con:request>
         </con:config>
@@ -3452,19 +3400,19 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-29T23:39:32Z</con:value>
+          <con:value>2012-07-23T12:29:43Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-29T23:49:32Z</con:value>
+          <con:value>2012-07-23T12:39:43Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/29/2012 23:39:32</con:value>
+          <con:value>07/23/2012 12:29:43</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-30T00:00:00Z</con:value>
+          <con:value>2012-08-22T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -3497,7 +3445,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -3552,7 +3500,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -3562,7 +3510,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Add Correlation for HCID in the UDDI" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -3575,7 +3523,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
 }
 
 
-context.withSql('PatientCorrelationDB') { sql -&gt; 
+context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -3591,7 +3539,7 @@ context.withSql('PatientCorrelationDB') { sql -&gt;
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+          <script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -3640,11 +3588,11 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
       
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
-            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/&gt;</con:setting></con:settings>
+            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings>
             <con:encoding>UTF-8</con:encoding>
             <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
             <con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope" xmlns:urn="urn:gov:hhs:fha:nhinc:common:nhinccommonentity" xmlns:urn1="urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0" xmlns:urn2="urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0" xmlns:urn3="urn:gov:hhs:fha:nhinc:common:nhinccommon">
@@ -3900,7 +3848,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
    </soapenv:Body>
 </soapenv:Envelope>]]></con:request>
             <con:assertion type="SOAP Response"/>
-            <con:assertion type="Schema Compliance">
+            <con:assertion disabled="true" type="Schema Compliance">
               <con:configuration/>
             </con:assertion>
             <con:assertion type="SOAP Fault Assertion"/>
@@ -3913,13 +3861,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
                 <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
               </con:configuration>
             </con:assertion>
-            <con:assertion disabled="true" type="Simple Contains">
-              <con:configuration>
-                <token>&lt;ns5:RegistryObjectList/&gt;</token>
-                <ignoreCase>false</ignoreCase>
-                <useRegEx>false</useRegEx>
-              </con:configuration>
-            </con:assertion>
+            
             <con:assertion type="XPath Match">
               <con:configuration><path>declare namespace ns3='urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0';
 declare namespace ns6='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
@@ -3934,19 +3876,19 @@ count(//ns6:AdhocQueryResponse[1]/ns3:RegistryObjectList[1]/ns3:ExtrinsicObject)
       </con:testStep><con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-29T23:39:33Z</con:value>
+          <con:value>2012-07-23T12:29:43Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-29T23:49:33Z</con:value>
+          <con:value>2012-07-23T12:39:43Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/29/2012 23:39:33</con:value>
+          <con:value>07/23/2012 12:29:43</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-30T00:00:00Z</con:value>
+          <con:value>2012-08-22T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -4000,7 +3942,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -4018,7 +3960,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       </con:testStep>
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
-        <con:config><script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+        <con:config><script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   sql.execute('delete from ' + table)
 }</script></con:config>
@@ -4026,7 +3968,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+          <script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -4071,11 +4013,11 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
       
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
-            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/&gt;</con:setting></con:settings>
+            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings>
             <con:encoding>UTF-8</con:encoding>
             <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
             <con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope" xmlns:urn="urn:gov:hhs:fha:nhinc:common:nhinccommonentity" xmlns:urn1="urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0" xmlns:urn2="urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0" xmlns:urn3="urn:gov:hhs:fha:nhinc:common:nhinccommon">
@@ -4337,19 +4279,19 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
       </con:testStep><con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-29T23:39:37Z</con:value>
+          <con:value>2012-07-23T12:29:45Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-29T23:49:37Z</con:value>
+          <con:value>2012-07-23T12:39:45Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/29/2012 23:39:37</con:value>
+          <con:value>07/23/2012 12:29:45</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-30T00:00:00Z</con:value>
+          <con:value>2012-08-22T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -4424,7 +4366,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -4443,7 +4385,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -4453,7 +4395,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+          <script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -4485,11 +4427,11 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       </con:testStep>
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
-            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/&gt;</con:setting></con:settings>
+            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings>
             <con:encoding>UTF-8</con:encoding>
             <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
             <con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope" xmlns:urn="urn:gov:hhs:fha:nhinc:common:nhinccommonentity" xmlns:urn1="urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0" xmlns:urn2="urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0" xmlns:urn3="urn:gov:hhs:fha:nhinc:common:nhinccommon">
@@ -4748,24 +4690,14 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
             </con:assertion>
             <con:assertion type="SOAP Fault Assertion"/>
             <con:assertion name="Severity" type="XPath Match">
-              <con:configuration>
-                <path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
+              <con:configuration><path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
 declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
-//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@severity</path>
-                <content>Error</content>
-                <allowWildcards>false</allowWildcards>
-                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
-              </con:configuration>
+//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@severity</path><content>urn:oasis:names:tc:ebxml-regrep:ErrorSeverityType:Error</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences><ignoreComments>false</ignoreComments></con:configuration>
             </con:assertion>
             <con:assertion name="errorCode" type="XPath Match">
-              <con:configuration>
-                <path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
+              <con:configuration><path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
 declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
-//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@errorCode</path>
-                <content>XDSRepositoryError</content>
-                <allowWildcards>false</allowWildcards>
-                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
-              </con:configuration>
+//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@errorCode</path><content>XDSUnknownPatientId</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences><ignoreComments>false</ignoreComments></con:configuration>
             </con:assertion>
             <con:assertion name="codeContext" type="XPath Match">
               <con:configuration>
@@ -4795,19 +4727,19 @@ declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
       <con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-29T23:39:38Z</con:value>
+          <con:value>2012-07-23T12:29:46Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-29T23:49:38Z</con:value>
+          <con:value>2012-07-23T12:39:46Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/29/2012 23:39:38</con:value>
+          <con:value>07/23/2012 12:29:46</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-30T00:00:00Z</con:value>
+          <con:value>2012-08-22T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -4882,7 +4814,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -4901,7 +4833,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -4911,7 +4843,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Add Correlation for HCID not in the UDDI" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -4926,8 +4858,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       </con:testStep>
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
-        <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+        <con:config><script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -4947,23 +4878,22 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
   
   def insertSql = "insert into " + table + " (id, assigningauthorityid, homecommunityid) " + 
                    "values (1, ?, ?)"
-  sql.executeUpdate(insertSql, [remoteAA, remoteHCID])
-  sql.executeUpdate(insertSql, [aa1, hcid1])
-  sql.executeUpdate(insertSql, [aa2, hcid2])
-  sql.executeUpdate(insertSql, [aa3, hcid3])
-  sql.executeUpdate(insertSql, [aa4, hcid4])
+  //sql.executeUpdate(insertSql, [remoteAA, remoteHCID])
+  //sql.executeUpdate(insertSql, [aa1, hcid1])
+  //sql.executeUpdate(insertSql, [aa2, hcid2])
+  //sql.executeUpdate(insertSql, [aa3, hcid3])
+  //sql.executeUpdate(insertSql, [aa4, hcid4])
   sql.executeUpdate(insertSql, [testaa, testhcid])
   
-}</script>
-        </con:config>
+}</script></con:config>
       </con:testStep>
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
-            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/&gt;</con:setting></con:settings>
+            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings>
             <con:encoding>UTF-8</con:encoding>
             <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
             <con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope" xmlns:urn="urn:gov:hhs:fha:nhinc:common:nhinccommonentity" xmlns:urn1="urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0" xmlns:urn2="urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0" xmlns:urn3="urn:gov:hhs:fha:nhinc:common:nhinccommon">
@@ -5223,17 +5153,12 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
             <con:assertion type="SOAP Fault Assertion"/>
             <con:assertion name="Status" type="XPath Match">
               <con:configuration><path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
-//ns16:AdhocQueryResponse[1]/@status</path><content>urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Success</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences></con:configuration>
+//ns16:AdhocQueryResponse[1]/@status</path><content>urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Failure</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences><ignoreComments>false</ignoreComments></con:configuration>
             </con:assertion>
             <con:assertion name="Severity" type="XPath Match">
-              <con:configuration>
-                <path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
+              <con:configuration><path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
 declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
-//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@severity</path>
-                <content>Error</content>
-                <allowWildcards>false</allowWildcards>
-                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
-              </con:configuration>
+//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@severity</path><content>urn:oasis:names:tc:ebxml-regrep:ErrorSeverityType:Error</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences></con:configuration>
             </con:assertion>
             <con:assertion name="errorCode" type="XPath Match">
               <con:configuration>
@@ -5259,19 +5184,19 @@ declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
       <con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-29T23:39:41Z</con:value>
+          <con:value>2012-07-23T12:29:46Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-29T23:49:41Z</con:value>
+          <con:value>2012-07-23T12:39:46Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/29/2012 23:39:41</con:value>
+          <con:value>07/23/2012 12:29:46</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-30T00:00:00Z</con:value>
+          <con:value>2012-08-22T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -5286,7 +5211,7 @@ def sourceFile = "uddiConnectionInfo.xml";
 def destDir = System.env['NHINC_PROPERTIES_DIR'];
 def destFile = "uddiConnectionInfo.xml";
 FileUtils.MoveFile(sourceDir, sourceFile, destDir, destFile, context, log);</con:tearDownScript></con:testCase>
-    <con:testCase failOnError="true" failTestCaseOnErrors="true" id="9e940daf-b52b-4d96-992c-cef25421fd38" keepSession="false" maxResults="0" name="State Alt Path - Correlation for HCID IN UDDI file/target XML" searchProperties="true">
+    <con:testCase disabled="true" failOnError="true" failTestCaseOnErrors="true" id="9e940daf-b52b-4d96-992c-cef25421fd38" keepSession="false" maxResults="0" name="State Alt Path - Correlation for HCID IN UDDI file/target XML" searchProperties="true">
       <con:settings/>
       
       <con:testStep name="Copy uddiConnectionInfo" type="groovy">
@@ -5346,7 +5271,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -5365,7 +5290,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -5375,7 +5300,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Add Correlation for HCID in the UDDI" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -5387,7 +5312,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
   sql.executeUpdate(insertSql, [localAA, localPatientID, uddiVA1, remotePatientID])
 }
 
-context.withSql('PatientCorrelationDB') { sql -&gt; 
+context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -5399,7 +5324,7 @@ context.withSql('PatientCorrelationDB') { sql -&gt;
   sql.executeUpdate(insertSql, [localAA, localPatientID, uddiVA2, remotePatientID])
 }
 
-context.withSql('PatientCorrelationDB') { sql -&gt; 
+context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -5415,7 +5340,7 @@ context.withSql('PatientCorrelationDB') { sql -&gt;
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+          <script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -5459,12 +5384,12 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
       </con:testStep>
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
             <con:settings>
-              <con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/&gt;</con:setting>
+              <con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting>
             </con:settings>
             <con:encoding>UTF-8</con:encoding>
             <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
@@ -5721,7 +5646,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
    </soapenv:Body>
 </soapenv:Envelope>]]></con:request>
             <con:assertion type="SOAP Response"/>
-            <con:assertion type="Schema Compliance">
+            <con:assertion disabled="true" type="Schema Compliance">
               <con:configuration/>
             </con:assertion>
             <con:assertion type="SOAP Fault Assertion"/>
@@ -5736,7 +5661,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
             </con:assertion>
             <con:assertion disabled="true" type="Simple Contains">
               <con:configuration>
-                <token>&lt;ns5:RegistryObjectList/&gt;</token>
+                <token>&lt;ns5:RegistryObjectList/></token>
                 <ignoreCase>false</ignoreCase>
                 <useRegEx>false</useRegEx>
               </con:configuration>
@@ -5744,7 +5669,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
             <con:assertion type="XPath Match">
               <con:configuration><path>declare namespace ns3='urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0';
 declare namespace ns6='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
-count(//ns6:AdhocQueryResponse[1]/ns3:RegistryObjectList[1]/ns3:ExtrinsicObject)</path><content>4</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences></con:configuration>
+count(//ns6:AdhocQueryResponse[1]/ns3:RegistryObjectList[1]/ns3:ExtrinsicObject)</path><content>5</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences></con:configuration>
             </con:assertion>
             <con:jmsConfig JMSDeliveryMode="PERSISTENT"/>
             <con:jmsPropertyConfig/>
@@ -5758,19 +5683,19 @@ count(//ns6:AdhocQueryResponse[1]/ns3:RegistryObjectList[1]/ns3:ExtrinsicObject)
       <con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-29T23:39:42Z</con:value>
+          <con:value>2012-03-29T20:29:28Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-29T23:49:42Z</con:value>
+          <con:value>2012-03-29T20:39:28Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/29/2012 23:39:42</con:value>
+          <con:value>03/29/2012 20:29:28</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-30T00:00:00Z</con:value>
+          <con:value>2012-04-28T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -5778,13 +5703,13 @@ count(//ns6:AdhocQueryResponse[1]/ns3:RegistryObjectList[1]/ns3:ExtrinsicObject)
         </con:property>
       </con:properties>
       <con:reportParameters/>
-    <con:tearDownScript>FileUtils.restoreToMasterConfiguration(context, log);
+    <con:tearDownScript>//FileUtils.restoreToMasterConfiguration(context, log);
 
 def sourceDir = System.env['NHINC_PROPERTIES_DIR'] + "/master/";
 def sourceFile = "uddiConnectionInfo.xml";
 def destDir = System.env['NHINC_PROPERTIES_DIR'];
 def destFile = "uddiConnectionInfo.xml";
-FileUtils.MoveFile(sourceDir, sourceFile, destDir, destFile, context, log);</con:tearDownScript></con:testCase>
+//FileUtils.MoveFile(sourceDir, sourceFile, destDir, destFile, context, log);</con:tearDownScript></con:testCase>
     <con:testCase failOnError="true" failTestCaseOnErrors="true" id="b673cce6-4e31-401e-8fb0-1b98f7e35455" keepSession="false" maxResults="0" name="State Alt Path - Region and associated HCID in target xml results in one response" searchProperties="true">
       <con:settings/>
       
@@ -5845,7 +5770,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -5864,7 +5789,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -5874,7 +5799,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Add Correlation for HCID in the UDDI" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -5890,7 +5815,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+          <script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -5934,11 +5859,11 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
       </con:testStep>
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
-            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/&gt;</con:setting></con:settings>
+            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings>
             <con:encoding>UTF-8</con:encoding>
             <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
             <con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope" xmlns:urn="urn:gov:hhs:fha:nhinc:common:nhinccommonentity" xmlns:urn1="urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0" xmlns:urn2="urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0" xmlns:urn3="urn:gov:hhs:fha:nhinc:common:nhinccommon">
@@ -6194,7 +6119,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
    </soapenv:Body>
 </soapenv:Envelope>]]></con:request>
             <con:assertion type="SOAP Response"/>
-            <con:assertion type="Schema Compliance">
+            <con:assertion disabled="true" type="Schema Compliance">
               <con:configuration/>
             </con:assertion>
             <con:assertion type="SOAP Fault Assertion"/>
@@ -6209,7 +6134,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
             </con:assertion>
             <con:assertion disabled="true" type="Simple Contains">
               <con:configuration>
-                <token>&lt;ns5:RegistryObjectList/&gt;</token>
+                <token>&lt;ns5:RegistryObjectList/></token>
                 <ignoreCase>false</ignoreCase>
                 <useRegEx>false</useRegEx>
               </con:configuration>
@@ -6229,19 +6154,19 @@ count(//ns6:AdhocQueryResponse[1]/ns3:RegistryObjectList[1]/ns3:ExtrinsicObject)
       <con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-29T23:39:47Z</con:value>
+          <con:value>2012-07-23T12:29:47Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-29T23:49:47Z</con:value>
+          <con:value>2012-07-23T12:39:47Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/29/2012 23:39:47</con:value>
+          <con:value>07/23/2012 12:29:47</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-30T00:00:00Z</con:value>
+          <con:value>2012-08-22T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -6316,7 +6241,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -6335,7 +6260,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -6345,7 +6270,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Add Correlation for HCID in the UDDI" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -6357,7 +6282,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
   sql.executeUpdate(insertSql, [localAA, localPatientID, uddiVA1, remotePatientID])
 }
 
-context.withSql('PatientCorrelationDB') { sql -&gt; 
+context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -6369,7 +6294,7 @@ context.withSql('PatientCorrelationDB') { sql -&gt;
   sql.executeUpdate(insertSql, [localAA, localPatientID, uddiGA1, remotePatientID])
 }
 
-context.withSql('PatientCorrelationDB') { sql -&gt; 
+context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -6385,7 +6310,7 @@ context.withSql('PatientCorrelationDB') { sql -&gt;
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+          <script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -6435,11 +6360,11 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
       </con:testStep>
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
-            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/&gt;</con:setting></con:settings>
+            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings>
             <con:encoding>UTF-8</con:encoding>
             <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
             <con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope" xmlns:urn="urn:gov:hhs:fha:nhinc:common:nhinccommonentity" xmlns:urn1="urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0" xmlns:urn2="urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0" xmlns:urn3="urn:gov:hhs:fha:nhinc:common:nhinccommon">
@@ -6704,7 +6629,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
    </soapenv:Body>
 </soapenv:Envelope>]]></con:request>
             <con:assertion type="SOAP Response"/>
-            <con:assertion type="Schema Compliance">
+            <con:assertion disabled="true" type="Schema Compliance">
               <con:configuration/>
             </con:assertion>
             <con:assertion type="SOAP Fault Assertion"/>
@@ -6718,11 +6643,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
               </con:configuration>
             </con:assertion>
             <con:assertion disabled="true" type="Simple Contains">
-              <con:configuration>
-                <token>&lt;ns5:RegistryObjectList/&gt;</token>
-                <ignoreCase>false</ignoreCase>
-                <useRegEx>false</useRegEx>
-              </con:configuration>
+              <con:configuration><token>&lt;ns5:RegistryObjectList/></token><ignoreCase>false</ignoreCase><useRegEx>false</useRegEx></con:configuration>
             </con:assertion>
             <con:assertion type="XPath Match">
               <con:configuration><path>declare namespace ns3='urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0';
@@ -6741,19 +6662,19 @@ count(//ns6:AdhocQueryResponse[1]/ns3:RegistryObjectList[1]/ns3:ExtrinsicObject)
       <con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-29T23:39:51Z</con:value>
+          <con:value>2012-07-23T12:29:48Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-29T23:49:51Z</con:value>
+          <con:value>2012-07-23T12:39:48Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/29/2012 23:39:51</con:value>
+          <con:value>07/23/2012 12:29:48</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-30T00:00:00Z</con:value>
+          <con:value>2012-08-22T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -6807,7 +6728,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -6826,7 +6747,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -6836,7 +6757,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Add Correlation for HCID in the UDDI" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -6852,7 +6773,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+          <script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -6896,7 +6817,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
       </con:testStep>
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
@@ -7136,7 +7057,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
    </soapenv:Body>
 </soapenv:Envelope>]]></con:request>
             <con:assertion type="SOAP Response"/>
-            <con:assertion type="Schema Compliance">
+            <con:assertion disabled="true" type="Schema Compliance">
               <con:configuration/>
             </con:assertion>
             <con:assertion type="SOAP Fault Assertion"/>
@@ -7151,7 +7072,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
             </con:assertion>
             <con:assertion disabled="true" type="Simple Contains">
               <con:configuration>
-                <token>&lt;ns5:RegistryObjectList/&gt;</token>
+                <token>&lt;ns5:RegistryObjectList/></token>
                 <ignoreCase>false</ignoreCase>
                 <useRegEx>false</useRegEx>
               </con:configuration>
@@ -7176,19 +7097,19 @@ count(//ns6:AdhocQueryResponse[1]/ns3:RegistryObjectList[1]/ns3:ExtrinsicObject)
       <con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-27T12:37:08Z</con:value>
+          <con:value>2012-03-29T20:42:15Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-27T12:47:08Z</con:value>
+          <con:value>2012-03-29T20:52:15Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/27/2012 12:37:08</con:value>
+          <con:value>03/29/2012 20:42:15</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-28T00:00:00Z</con:value>
+          <con:value>2012-04-28T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -7242,7 +7163,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -7261,7 +7182,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -7271,7 +7192,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Add Correlation for HCID in the UDDI" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -7287,7 +7208,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('AAMappingDB') { sql -&gt; 
+          <script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -7331,7 +7252,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
       </con:testStep>
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
@@ -7587,7 +7508,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
    </soapenv:Body>
 </soapenv:Envelope>]]></con:request>
             <con:assertion type="SOAP Response"/>
-            <con:assertion type="Schema Compliance">
+            <con:assertion disabled="true" type="Schema Compliance">
               <con:configuration/>
             </con:assertion>
             <con:assertion type="SOAP Fault Assertion"/>
@@ -7602,7 +7523,7 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
             </con:assertion>
             <con:assertion disabled="true" type="Simple Contains">
               <con:configuration>
-                <token>&lt;ns5:RegistryObjectList/&gt;</token>
+                <token>&lt;ns5:RegistryObjectList/></token>
                 <ignoreCase>false</ignoreCase>
                 <useRegEx>false</useRegEx>
               </con:configuration>
@@ -7627,19 +7548,19 @@ count(//ns6:AdhocQueryResponse[1]/ns3:RegistryObjectList[1]/ns3:ExtrinsicObject)
       <con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-27T12:54:11Z</con:value>
+          <con:value>2012-03-29T20:44:04Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-27T13:04:11Z</con:value>
+          <con:value>2012-03-29T20:54:04Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/27/2012 12:54:11</con:value>
+          <con:value>03/29/2012 20:44:04</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-28T00:00:00Z</con:value>
+          <con:value>2012-04-28T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -7654,7 +7575,7 @@ def sourceFile = "uddiConnectionInfo.xml";
 def destDir = System.env['NHINC_PROPERTIES_DIR'];
 def destFile = "uddiConnectionInfo.xml";
 FileUtils.MoveFile(sourceDir, sourceFile, destDir, destFile, context, log);</con:tearDownScript></con:testCase>
-    <con:testCase disabled="true" failOnError="true" failTestCaseOnErrors="true" id="7c286477-8a88-4aad-ab67-d6968f946de2" keepSession="false" maxResults="0" name="State Happy Path - Correlation for HCID not in UDDI file/target XML" searchProperties="true">
+    <con:testCase failOnError="true" failTestCaseOnErrors="true" id="7c286477-8a88-4aad-ab67-d6968f946de2" keepSession="false" maxResults="0" name="State Happy Path - Correlation for HCID not in UDDI file/target XML" searchProperties="true">
       <con:settings/>
       
       <con:testStep name="Copy uddiConnectionInfo" type="groovy">
@@ -7711,7 +7632,7 @@ void UpdateProperty(String directory, String filename, String propertyKey, Strin
    properties.load(frPropFile);
    properties.setProperty(propertyKey, propertyValue);
    FileOutputStream fwPropFile = new FileOutputStream(file);
-   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy-&gt;UpdateProperty");
+   properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
    properties = null;
 }
 
@@ -7730,7 +7651,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       <con:testStep name="Clear Correlation Table" type="groovy">
         <con:settings/>
         <con:config>
-          <script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+          <script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
   
   sql.execute('delete from ' + table)
@@ -7739,7 +7660,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       </con:testStep>
       <con:testStep name="Add Correlation for HCID not in the UDDI" type="groovy">
         <con:settings/>
-        <con:config><script>context.withSql('PatientCorrelationDB') { sql -&gt; 
+        <con:config><script>context.withSql('PatientCorrelationDB') { sql -> 
   def table = context.findProperty('PatientCorrelationTable')
 
   def localAA = context.findProperty( "LocalAA" )	
@@ -7753,7 +7674,7 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
       </con:testStep>
       <con:testStep name="Clear AA Mapping Table &amp; Add Mapping" type="groovy">
         <con:settings/>
-        <con:config><script>context.withSql('AAMappingDB') { sql -&gt; 
+        <con:config><script>context.withSql('AAMappingDB') { sql -> 
   def table = context.findProperty('AAMappingTable')
   
   sql.execute('delete from ' + table)
@@ -7770,16 +7691,18 @@ context.testCase.setPropertyValue('FullPatientID', "'${dqPatientID}^^^&amp;amp;$
   def aa3 = context.findProperty("UDDIaa3")
   def aa4 = context.findProperty("UDDIaa4")
   def testaa = context.findProperty("testAA")
+  def aa9 = context.findProperty("UDDIhcid9")
+  def hcid9 = context.findProperty("UDDIaa9")
   
   def insertSql = "insert into " + table + " (id, assigningauthorityid, homecommunityid) " + 
                    "values (1, ?, ?)"
-  sql.executeUpdate(insertSql, [remoteAA, remoteHCID])
-  sql.executeUpdate(insertSql, [aa1, hcid1])
-  sql.executeUpdate(insertSql, [aa2, hcid2])
-  sql.executeUpdate(insertSql, [aa3, hcid3])
-  sql.executeUpdate(insertSql, [aa4, hcid4])
-  sql.executeUpdate(insertSql, [testaa, testhcid])
-  
+//  sql.executeUpdate(insertSql, [remoteAA, remoteHCID])
+//  sql.executeUpdate(insertSql, [aa1, hcid1])
+//  sql.executeUpdate(insertSql, [aa2, hcid2])
+//  sql.executeUpdate(insertSql, [aa3, hcid3])
+//  sql.executeUpdate(insertSql, [aa4, hcid4])
+//  sql.executeUpdate(insertSql, [testaa, testhcid])
+  sql.executeUpdate(insertSql, [aa9, hcid9])
 }</script></con:config>
       </con:testStep>
       <con:testStep name="update config - uddiConnectionInfo" type="groovy">
@@ -7799,11 +7722,11 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
       
       <con:testStep name="Document Query" type="request">
         <con:settings/>
-        <con:config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="con:RequestStep">
+        <con:config xsi:type="con:RequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <con:interface>EntityDocQueryBindingSoap</con:interface>
           <con:operation>RespondingGateway_CrossGatewayQuery</con:operation>
           <con:request name="Document Query">
-            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/&gt;</con:setting></con:settings>
+            <con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings>
             <con:encoding>UTF-8</con:encoding>
             <con:endpoint>${#Project#Endpoint-DocQuery}</con:endpoint>
             <con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://www.w3.org/2003/05/soap-envelope" xmlns:urn="urn:gov:hhs:fha:nhinc:common:nhinccommonentity" xmlns:urn1="urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0" xmlns:urn2="urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0" xmlns:urn3="urn:gov:hhs:fha:nhinc:common:nhinccommon">
@@ -8073,29 +7996,19 @@ FileUtils.CreateOrUpdateConnection("uddiConnectionInfo.xml", destConfigFileLocat
               </con:configuration>
             </con:assertion>
             <con:assertion name="Severity" type="XPath Match">
-              <con:configuration>
-                <path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
+              <con:configuration><path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
 declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
-//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@severity</path>
-                <content>Error</content>
-                <allowWildcards>false</allowWildcards>
-                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
-              </con:configuration>
+//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@severity</path><content>urn:oasis:names:tc:ebxml-regrep:ErrorSeverityType:Error</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences><ignoreComments>false</ignoreComments></con:configuration>
             </con:assertion>
             <con:assertion name="errorCode" type="XPath Match">
-              <con:configuration>
-                <path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
+              <con:configuration><path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
 declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
-//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@errorCode</path>
-                <content>XDSRepositoryError</content>
-                <allowWildcards>false</allowWildcards>
-                <ignoreNamspaceDifferences>false</ignoreNamspaceDifferences>
-              </con:configuration>
+//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@errorCode</path><content>XDSRepositoryError</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences><ignoreComments>false</ignoreComments></con:configuration>
             </con:assertion>
             <con:assertion name="codeContext" type="XPath Match">
               <con:configuration><path>declare namespace ns16='urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0';
 declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
-//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@codeContext</path><content>Error from target homeId=8.8</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences></con:configuration>
+//ns16:AdhocQueryResponse[1]/ns15:RegistryErrorList[1]/ns15:RegistryError[1]/@codeContext</path><content>Error from target homeId=9.9</content><allowWildcards>false</allowWildcards><ignoreNamspaceDifferences>false</ignoreNamspaceDifferences><ignoreComments>false</ignoreComments></con:configuration>
             </con:assertion>
             <con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:wsaConfig mustUnderstand="NONE" version="200508"/>
             <con:wsrmConfig version="1.2"/>
@@ -8104,19 +8017,19 @@ declare namespace ns15='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0';
       </con:testStep><con:properties>
         <con:property>
           <con:name>startDate</con:name>
-          <con:value>2012-02-27T13:58:56Z</con:value>
+          <con:value>2012-07-23T12:29:51Z</con:value>
         </con:property>
         <con:property>
           <con:name>endDate</con:name>
-          <con:value>2012-02-27T14:08:56Z</con:value>
+          <con:value>2012-07-23T12:39:51Z</con:value>
         </con:property>
         <con:property>
           <con:name>sigDate</con:name>
-          <con:value>02/27/2012 13:58:56</con:value>
+          <con:value>07/23/2012 12:29:51</con:value>
         </con:property>
         <con:property>
           <con:name>expireDate</con:name>
-          <con:value>2012-03-28T00:00:00Z</con:value>
+          <con:value>2012-08-22T00:00:00Z</con:value>
         </con:property>
         <con:property>
           <con:name>FullPatientID</con:name>
@@ -8204,12 +8117,12 @@ FileUtils.MoveFile(sourceDir, sourceFile, destDir, destFile, context, log);</con
     
     
     
-  <con:property><con:name>UDDIhcid1</con:name><con:value>4.4</con:value></con:property><con:property><con:name>UDDIhcid2</con:name><con:value>5.5</con:value></con:property><con:property><con:name>UDDIhcid3</con:name><con:value>6.6</con:value></con:property><con:property><con:name>UDDIhcid4</con:name><con:value>7.7</con:value></con:property><con:property><con:name>UnSubscriptionID</con:name><con:value>3e74139f-5271-4db1-98c0-88748fa3e4e3</con:value></con:property></con:properties>
+  <con:property><con:name>UDDIhcid1</con:name><con:value>4.4</con:value></con:property><con:property><con:name>UDDIhcid2</con:name><con:value>5.5</con:value></con:property><con:property><con:name>UDDIhcid3</con:name><con:value>6.6</con:value></con:property><con:property><con:name>UDDIhcid4</con:name><con:value>7.7</con:value></con:property><con:property><con:name>UnSubscriptionID</con:name><con:value>3e74139f-5271-4db1-98c0-88748fa3e4e3</con:value></con:property><con:property><con:name>UDDIhcid9</con:name><con:value>9.9</con:value></con:property><con:property><con:name>UDDIaa9</con:name><con:value>9.9</con:value></con:property></con:properties>
   <con:afterLoadScript>def propertiesFile = new File(new File(project.path).parent, 'DocQueryTestsForUDDI-soapui-project.properties')
 if (propertiesFile.exists()) {
 	def props = new Properties()
 	props.load(new FileReader(propertiesFile))
-	props.each { key, value -&gt;
+	props.each { key, value ->
 	    project.setPropertyValue(key, value)
 	}
 }
@@ -8217,11 +8130,11 @@ if (propertiesFile.exists()) {
 
 TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
 def testRunListener = [
-  afterRun: { testRunner, runContext -&gt; },
-  afterStep: { testRunner, runContext, result -&gt; },
-  beforeStep: { testRunner, runContext -&gt; },
-  beforeStep: { testRunner, runContext, testStep -&gt; },
-  beforeRun: { testRunner, runContext -&gt; 
+  afterRun: { testRunner, runContext -> },
+  afterStep: { testRunner, runContext, result -> },
+  beforeStep: { testRunner, runContext -> },
+  beforeStep: { testRunner, runContext, testStep -> },
+  beforeRun: { testRunner, runContext -> 
     use (org.codehaus.groovy.runtime.TimeCategory) {
       def startDate = 5.minutes.ago
       def endDate = 5.minutes.from.now
@@ -8242,14 +8155,14 @@ project.testSuiteList*.testCaseList.flatten()*.addTestRunListener(testRunListene
 
 
 
-com.eviware.soapui.impl.wsdl.testcase.WsdlTestRunContext.metaClass.findProperty = { propertyName -&gt;
+com.eviware.soapui.impl.wsdl.testcase.WsdlTestRunContext.metaClass.findProperty = { propertyName ->
     return delegate.getProperty(propertyName) ?:
                 delegate.testCase.getPropertyValue(propertyName) ?:
                 delegate.testCase.testSuite.getPropertyValue(propertyName) ?:
                 delegate.testCase.testSuite.project.getPropertyValue(propertyName)
 }
 
-com.eviware.soapui.impl.wsdl.testcase.WsdlTestRunContext.metaClass.withSql = { dbOrPropertyName, block -&gt;
+com.eviware.soapui.impl.wsdl.testcase.WsdlTestRunContext.metaClass.withSql = { dbOrPropertyName, block ->
   def dbName = delegate.findProperty(dbOrPropertyName) ?: dbOrPropertyName
   def host = delegate.findProperty('DBHost')
   def port = delegate.findProperty('DBPort')
@@ -8334,4 +8247,4 @@ com.eviware.soapui.impl.wsdl.testcase.WsdlTestRunContext.metaClass.withSql = { d
   <con:eventHandlers name="TestSuiteRunListener.afterTestCase" type="TestSuiteRunListener.afterTestCase">
     <con:script>FileUtils.restoreConfiguration(context, log)</con:script>
   </con:eventHandlers>
-</con:soapui-project>
+<con:sensitiveInformation/></con:soapui-project>

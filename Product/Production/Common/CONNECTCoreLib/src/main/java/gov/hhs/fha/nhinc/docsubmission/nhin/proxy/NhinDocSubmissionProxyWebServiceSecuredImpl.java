@@ -40,6 +40,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import ihe.iti.xdr._2007.DocumentRepositoryXDRPortType;
 import javax.xml.namespace.QName;
+import javax.xml.ws.BindingProvider;
 import javax.xml.ws.Service;
 
 /**
@@ -71,14 +72,20 @@ public class NhinDocSubmissionProxyWebServiceSecuredImpl implements NhinDocSubmi
         return new WebServiceProxyHelper();
     }
 
+    protected void initializeSecurePort(DocumentRepositoryXDRPortType port, String url, String wsAddressingAction,
+            AssertionType assertion) {
+        proxyHelper.initializeSecurePort((javax.xml.ws.BindingProvider) port, url, NhincConstants.XDR_ACTION,
+                wsAddressingAction, assertion);
+    }
+
     /**
      * This method retrieves and initializes the port.
      * 
      * @param url The URL for the web service.
      * @return The port object for the web service.
      */
-    protected DocumentRepositoryXDRPortType getPort(String url, String serviceAction,
-            AssertionType assertion, NhincConstants.GATEWAY_API_LEVEL apiLevel) {
+    protected DocumentRepositoryXDRPortType getPort(String url, AssertionType assertion,
+            NhincConstants.GATEWAY_API_LEVEL apiLevel) {
         DocumentRepositoryXDRPortType port = null;
         Service service;
         String wsAddressingAction;
@@ -95,13 +102,12 @@ public class NhinDocSubmissionProxyWebServiceSecuredImpl implements NhinDocSubmi
             service = null;
             wsAddressingAction = null;
         }
-        
+
         if (service != null) {
             log.debug("Obtained service - creating port.");
 
             port = service.getPort(new QName(NAMESPACE_URI, PORT_LOCAL_PART), DocumentRepositoryXDRPortType.class);
-            proxyHelper.initializeSecurePort((javax.xml.ws.BindingProvider) port, url, serviceAction,
-                    wsAddressingAction, assertion);
+            initializeSecurePort(port, url, wsAddressingAction, assertion);
         } else {
             log.error("Unable to obtain service - no port created.");
         }
@@ -125,8 +131,7 @@ public class NhinDocSubmissionProxyWebServiceSecuredImpl implements NhinDocSubmi
         }
         return cachedService;
     }
-    
-    
+
     public RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request,
             AssertionType assertion, NhinTargetSystemType targetSystem, NhincConstants.GATEWAY_API_LEVEL apiLevel) {
         log.debug("Begin provideAndRegisterDocumentSetB");
@@ -135,7 +140,9 @@ public class NhinDocSubmissionProxyWebServiceSecuredImpl implements NhinDocSubmi
         try {
             String url = proxyHelper.getUrlFromTargetSystemByGatewayAPILevel(targetSystem,
                     NhincConstants.NHINC_XDR_SERVICE_NAME, apiLevel);
-            DocumentRepositoryXDRPortType port = getPort(url, NhincConstants.XDR_ACTION, assertion, apiLevel);
+            DocumentRepositoryXDRPortType port = getPort(url, assertion, apiLevel);
+            WebServiceProxyHelper wsHelper = new WebServiceProxyHelper();
+            wsHelper.addTargetCommunity(((BindingProvider)port), targetSystem);
 
             if (request == null) {
                 log.error("Message was null");

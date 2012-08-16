@@ -39,8 +39,6 @@ import gov.hhs.fha.nhinc.common.deferredqueuemanager.QueryDeferredQueueResponseT
 import gov.hhs.fha.nhinc.common.deferredqueuemanager.RetrieveDeferredQueueRequestType;
 import gov.hhs.fha.nhinc.common.deferredqueuemanager.RetrieveDeferredQueueResponseType;
 import gov.hhs.fha.nhinc.common.deferredqueuemanager.SuccessOrFailType;
-import gov.hhs.fha.nhinc.gateway.adapterdocqueryreqqueueprocess.DocQueryDeferredReqQueueProcessResponseType;
-import gov.hhs.fha.nhinc.gateway.adapterdocretrievereqqueueprocess.DocRetrieveDeferredReqQueueProcessResponseType;
 import gov.hhs.fha.nhinc.gateway.adapterpatientdiscoveryreqqueueprocess.PatientDiscoveryDeferredReqQueueProcessResponseType;
 import gov.hhs.fha.nhinc.nhinclib.NhincConstants;
 import gov.hhs.fha.nhinc.nhinclib.NullChecker;
@@ -306,22 +304,6 @@ public class DeferredQueueManagerHelper {
                 result = true;
             }
 
-        } else if (queueRecord.getServiceName().equals(NhincConstants.DOC_QUERY_SERVICE_NAME)) {
-            DocQueryDeferredReqQueueProcessResponseType qdResponse = processDeferredQueryForDocuments(queueRecord);
-
-            if (qdResponse != null && qdResponse.getSuccessOrFail() != null
-                    && qdResponse.getSuccessOrFail().isSuccess()) {
-                result = true;
-            }
-
-        } else if (queueRecord.getServiceName().equals(NhincConstants.DOC_RETRIEVE_SERVICE_NAME)) {
-            DocRetrieveDeferredReqQueueProcessResponseType rdResponse = processDeferredRetrieveDocuments(queueRecord);
-
-            if (rdResponse != null && rdResponse.getSuccessOrFail() != null
-                    && rdResponse.getSuccessOrFail().isSuccess()) {
-                result = true;
-            }
-
         } else {
             log.warn("Service Name " + queueRecord.getServiceName() + " processing not implemented.");
         }
@@ -337,7 +319,7 @@ public class DeferredQueueManagerHelper {
     private void setGlobalThreshold() {
 
         try {
-            String sGlobalThreshold = PropertyAccessor.getProperty(GATEWAY_PROPERTY_FILE,
+            String sGlobalThreshold = PropertyAccessor.getInstance().getProperty(GATEWAY_PROPERTY_FILE,
                     DEFERRED_QUEUE_GLOBAL_THRESHOLD);
             if ((sGlobalThreshold != null) && (sGlobalThreshold.length() > 0)) {
                 iGlobalThreshold = Integer.parseInt(sGlobalThreshold);
@@ -367,46 +349,6 @@ public class DeferredQueueManagerHelper {
                 .processPatientDiscoveryDeferredReqQueue(queueRecord.getMessageId());
 
         log.debug("End: DeferredQueueManagerHelper.processDeferredPatientDiscovery method - processing deferred message.");
-
-        return response;
-    }
-
-    /**
-     * Process the deferred query for documents request
-     * 
-     * @param queueRecord
-     * @return Deferred Query For Documents Response
-     * @throws DeferredQueueException
-     */
-    private DocQueryDeferredReqQueueProcessResponseType processDeferredQueryForDocuments(AsyncMsgRecord queueRecord)
-            throws DeferredQueueException {
-        log.debug("Start: DeferredQueueManagerHelper.processDeferredQueryForDocuments method - processing deferred message.");
-
-        QueryForDocumentsDeferredReqQueueClient reqClient = new QueryForDocumentsDeferredReqQueueClient();
-        DocQueryDeferredReqQueueProcessResponseType response = reqClient.processDocQueryDeferredReqQueue(queueRecord
-                .getMessageId());
-
-        log.debug("End: DeferredQueueManagerHelper.processDeferredQueryForDocuments method - processing deferred message.");
-
-        return response;
-    }
-
-    /**
-     * Process the deferred retrieve documents request
-     * 
-     * @param queueRecord
-     * @return Deferred Retrieve Documents Response
-     * @throws DeferredQueueException
-     */
-    private DocRetrieveDeferredReqQueueProcessResponseType processDeferredRetrieveDocuments(AsyncMsgRecord queueRecord)
-            throws DeferredQueueException {
-        log.debug("Start: DeferredQueueManagerHelper.processDeferredQueryForDocuments method - processing deferred message.");
-
-        RetrieveDocumentsDeferredReqQueueClient reqClient = new RetrieveDocumentsDeferredReqQueueClient();
-        DocRetrieveDeferredReqQueueProcessResponseType response = reqClient
-                .processDocRetrieveDeferredReqQueue(queueRecord.getMessageId());
-
-        log.debug("End: DeferredQueueManagerHelper.processDeferredQueryForDocuments method - processing deferred message.");
 
         return response;
     }

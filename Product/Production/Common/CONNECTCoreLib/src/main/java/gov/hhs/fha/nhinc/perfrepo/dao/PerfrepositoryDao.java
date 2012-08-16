@@ -279,7 +279,7 @@ public class PerfrepositoryDao {
             // Build the query
             Query sqlQuery = session
                     .createSQLQuery(
-                            "SELECT direction, COUNT(direction) AS countval FROM perfrepo.perfrepository WHERE starttime BETWEEN ? AND ? GROUP BY direction")
+                            "SELECT direction, COUNT(direction) AS countval FROM perfrepo.perfrepository WHERE time BETWEEN ? AND ? GROUP BY direction")
                     .addScalar("direction", Hibernate.STRING).addScalar("countval", Hibernate.LONG);
 
             List<Object[]> result = sqlQuery.setTimestamp(0, beginTime).setTimestamp(1, endTime).list();
@@ -507,7 +507,7 @@ public class PerfrepositoryDao {
         Long inbound = null;
         try {
             // Use CONNECT utility class to access gateway.properties
-            String inboundString = PropertyAccessor.getProperty(NhincConstants.GATEWAY_PROPERTY_FILE,
+            String inboundString = PropertyAccessor.getInstance().getProperty(NhincConstants.GATEWAY_PROPERTY_FILE,
                     PERF_EXPECTED_INBOUND);
             if (inboundString != null) {
                 inbound = new Long(inboundString);
@@ -535,7 +535,7 @@ public class PerfrepositoryDao {
         Long outbound = null;
         try {
             // Use CONNECT utility class to access gateway.properties
-            String outboundString = PropertyAccessor.getProperty(NhincConstants.GATEWAY_PROPERTY_FILE,
+            String outboundString = PropertyAccessor.getInstance().getProperty(NhincConstants.GATEWAY_PROPERTY_FILE,
                     PERF_EXPECTED_OUTBOUND);
             if (outboundString != null) {
                 outbound = new Long(outboundString);
@@ -563,7 +563,7 @@ public class PerfrepositoryDao {
         Long errors = null;
         try {
             // Use CONNECT utility class to access gateway.properties
-            String errorsString = PropertyAccessor.getProperty(NhincConstants.GATEWAY_PROPERTY_FILE,
+            String errorsString = PropertyAccessor.getInstance().getProperty(NhincConstants.GATEWAY_PROPERTY_FILE,
                     PERF_EXPECTED_ERRORS);
             if (errorsString != null) {
                 errors = new Long(errorsString);

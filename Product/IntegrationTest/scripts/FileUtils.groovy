@@ -5,6 +5,9 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.lang.Exception;
 
 import java.io.FileOutputStream;
 import javax.xml.parsers.DocumentBuilder;
@@ -19,7 +22,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-class FileUtils {
+class FileUtils{
   FileUtils() {}
    
   static String ReadFile(String FileName,context,log) {
@@ -99,10 +102,11 @@ class FileUtils {
 	
 	static UpdateProperty(String directory, String filename, String propertyKey, String propertyValue,context,log) {
     log.info("begin UpdateProperty; directory='" + directory + "';filename='" + filename + "';key='" + propertyKey + "';value='" + propertyValue + "';");
+	
     File file = new File(directory,filename);
+	
     Properties properties = new Properties();
     FileReader frPropFile = new FileReader(file);
-    properties = new Properties();
     properties.load(frPropFile);
 
     properties.setProperty(propertyKey, propertyValue);
@@ -111,6 +115,10 @@ class FileUtils {
     fwPropFile = new FileWriter(file);
     properties.store(fwPropFile, "**DO NOT CHECK IN** - written by groovy script FileUtils.groovy->UpdateProperty");
     properties = null;
+	}
+	
+	static updateGatewayProperty(String propertyKey, String propertyValue, context, log){
+		UpdateProperty(System.getenv("NHINC_PROPERTIES_DIR"), "gateway.properties", propertyKey, propertyValue, context, log);
 	}
 
 	static String ReadProperty(String directory, String filename, String propertyKey, context, log) {
@@ -124,6 +132,138 @@ class FileUtils {
 		properties = null;
 		return propertyValue;
 	}
+	
+	static changeSpringConfig(String fileName, String desiredImpltype, String beanName, log) throws Exception{
+		log.info("begin changeSpringConfig; file='" + fileName + "';specified bean name='" + beanName + "';desired impl='" + desiredImpltype + "';");
+		
+		//find the config file and insert into document builder
+		String fullPath = System.getenv("NHINC_PROPERTIES_DIR") + "/" + fileName;
+		log.info("Path to config file: " + fullPath);
+		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+		factory.setNamespaceAware(true);
+		Document doc = null;
+		try{
+			DocumentBuilder builder = factory.newDocumentBuilder();
+			doc = builder.parse(fullPath);
+		}
+		catch (Exception e){
+			e.printStackTrace();
+			return;
+		}
+		
+		//grab the top-level element
+		Element beans = (Element)doc.getElementsByTagName("beans").item(0);
+		
+		//grab the description element and parse out the string 
+		//containing the bean name(s)
+		Element description = (Element)beans.getElementsByTagName("description").item(0);
+		Pattern p = Pattern.compile("\\{(\w*,?)*\\}");
+		Matcher m = p.matcher(description.getTextContent());
+		m.find();
+		String beansInFile = m.group().substring(1, m.group().length() - 1);
+		
+		//if the bean is not specified and it needs to be because there is 
+		//more than one bean in the file then throw an exception
+		if ((beansInFile.split(",").getLength() > 1) && beanName.equals("none")){
+			log.info("There are multiple beans present in the configuration file " + fileName + ". Please specify the bean to configure.");
+			throw new Exception ("There are multiple beans present in the configuration file " + fileName + ". Must specify the bean to configure.");
+		}
+		
+		boolean foundMatch = false;
+		
+		//if no beanName is given via the overloaded method
+		if(beanName.equals("none")){
+			//set beanName to the one present from the config file
+			beanName = beansInFile;
+			foundMatch = true;
+			log.info("matched bean name:" + beanName);
+
+		//otherwise ensure a match between the provided beanName and one present in the file
+		}else{
+			String[] beanNameArray = beansInFile.split(",");
+			for (int i = 0; i < beanNameArray.getLength(); i++){
+				if (beanNameArray[i].equals(beanName)){
+					log.info("matched bean name:" + beanName);
+					foundMatch = true;
+				}
+			}
+		}
+		
+		//if no match for beanName is found, throw an exception
+		if (!foundMatch){
+			log.info("No bean by name " + beanName + "present in file " + fileName);
+			throw new Exception ("No bean by name " + beanName + "present in file " + fileName);
+		}
+		
+		
+		//get the list of beans and iterate though them
+		NodeList beanList = beans.getElementsByTagName("bean");
+		for (int i = 0; i < beanList.getLength(); i++){
+			Element bean = (Element)beanList.item(i);
+			
+			//skip bean if it is not one of the ones that we are interested in
+			if (!bean.getAttribure("id").startsWith(beanName))continue;
+
+			//find the active Spring implementation and modify
+			//to the non-active form
+			if (bean.getAttribute("id").equals(beanName)){
+				NodeList metaList = bean.getElementsByTagName("meta");
+				for (int j = 0; j < metaList.getLength(); j++){
+					Element meta = metaList.item(j);
+					if (meta.getAttribute("key").equals("impltype")){
+						bean.setAttribute("id", beanName.concat(meta.getAttribute("value")));
+					}
+				}
+			}
+			
+			//Search the meta list for the desired implementation type.
+			//If found, change the bean attribute "id" to the beanName. 
+			NodeList metaList = bean.getElementsByTagName("meta");
+			for (int j = 0; j < metaList.getLength(); j++){
+				Element meta = metaList.item(j);
+				
+				//if the desired implementation type is NOT "default"...
+				if (!desiredImpltype.equals("default")){
+					//... search for the desired implementation type and
+					//set the bean to the active form
+					if (meta.getAttribute("key").equals("impltype") && meta.getAttribute("value").equals(desiredImpltype)){
+						bean.setAttribute("id", beanName);
+					}
+				
+				//otherwise the desired implementation type is "default"...
+				}else{
+				//... search for "default" equals "true" and
+				//set the bean to the active form
+					if (meta.getAttribute("key").equals("default") && meta.getAttribute("value").equals("true")){
+						bean.setAttribute("id", beanName);
+					}
+				}
+			}
+		}
+		
+		//write the document
+		try{
+			Transformer transformer = TransformerFactory.newInstance().newTransformer();
+			transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+			
+			//initialize StreamResult with File object to save to file
+			DOMSource source = new DOMSource(doc);
+			FileOutputStream fileOutput = new FileOutputStream(fullPath);
+			StreamResult stream = new StreamResult(fileOutput);
+			transformer.transform(source, stream);
+			fileOutput.close();
+			log.info("Done createorupdate: " + fileName);
+		}
+		catch(Exception e){
+			log.error("Exception writing out connection info file: " + e.getMessage(), e);
+		}
+	}
+
+
+	static changeSpringConfig(String fileName, String desiredImpltype, log){
+	changeSpringConfig(fileName, desiredImpltype, "none", log);
+	}
+
 
 	static CreateOrUpdateConnection(String fileName, String directory, String communityId, String serviceName, String serviceUrl, String defaultVersion, context, log) {
 		

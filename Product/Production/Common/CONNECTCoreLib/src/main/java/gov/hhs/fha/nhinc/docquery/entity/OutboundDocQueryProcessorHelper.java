@@ -71,14 +71,9 @@ public class OutboundDocQueryProcessorHelper {
 
         // create new cumulativeResponse object
         AdhocQueryResponse newResponse = new AdhocQueryResponse();
-        newResponse.setStatus(XDS_RESPONSE_STATUS_SUCCESS);
         newResponse.setStartIndex(BigInteger.ZERO);
         newResponse.setTotalResultCount(BigInteger.ZERO);
 
-        RegistryObjectListType regObj = new RegistryObjectListType();
-        newResponse.setRegistryObjectList(regObj);
-        SlotListType slots = new SlotListType();
-        newResponse.setResponseSlotList(slots);
         cumulativeResponse.setCumulativeResponse(newResponse);
         log.debug("EntityDocQueryProcessorHelper constructed initial a0 cumulativeResponse");
         return cumulativeResponse;
@@ -98,14 +93,9 @@ public class OutboundDocQueryProcessorHelper {
 
         // create new cumulativeResponse object
         AdhocQueryResponse newResponse = new AdhocQueryResponse();
-        newResponse.setStatus(XDS_RESPONSE_STATUS_SUCCESS);
         newResponse.setStartIndex(BigInteger.ZERO);
         newResponse.setTotalResultCount(BigInteger.ZERO);
 
-        RegistryObjectListType regObj = new RegistryObjectListType();
-        newResponse.setRegistryObjectList(regObj);
-        SlotListType slots = new SlotListType();
-        newResponse.setResponseSlotList(slots);
         cumulativeResponse.setCumulativeResponse(newResponse);
         log.debug("EntityDocQueryProcessorHelper constructed initial a1 cumulativeResponse");
         return cumulativeResponse;

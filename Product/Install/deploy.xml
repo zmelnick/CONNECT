@@ -24,26 +24,6 @@
 
   <import file="settings.xml" />
 
-  <import file="exclusions.Dev.xml" />
-
-  <taskdef resource="com/sun/tools/appserver/antlib.xml">
-    <classpath>
-      <pathelement location="${glassfish.home}/lib/sun-appserv-ant.jar"/>
-      <pathelement location="${glassfish.home}/jbi/lib/jbi-ant-tasks.jar"/>
-      <pathelement location="${glassfish.home}/javadb/lib/derby.jar"/>
-
-      <pathelement location="${glassfish.home}/jbi/lib/jbi-admin-cli.jar"/>
-      <pathelement location="${glassfish.home}/jbi/lib/jbi-admin-common.jar"/>
-      <pathelement location="${glassfish.home}/lib/appserv-rt.jar"/>
-      <pathelement location="${glassfish.home}/lib/appserv-ext.jar"/>
-      <pathelement location="${glassfish.home}/lib/javaee.jar"/>
-      <pathelement location="${glassfish.home}/lib/appserv-se.jar"/>
-      <pathelement location="${glassfish.home}/lib/admin-cli.jar"/>
-      <pathelement location="${glassfish.home}/lib/appserv-admin.jar"/>
-      <pathelement location="${glassfish.home}/lib/install/applications/jmsra/imqjmsra.jar"/>
-    </classpath>
-  </taskdef>
-
   <target name="-deploy.setup.init" description="Set up the OS version">
     <tstamp>
       <format property="start.time" pattern="MM/dd/yyyy hh:mm aa"/>
@@ -90,6 +70,7 @@
       </then>
     </if>
     <runtarget target="delete.common.jars"/>
+    <runtarget target="deploy.thirdparty.libs"/>
     <runtarget target="deploy.shared.libs.to.glassfish"/>
     <runtarget target="deploy.glassfish.start.server"/>
     <runtarget target="deploy.wars.to.glassfish"/>
@@ -101,6 +82,23 @@
         <runtarget target="deploy.glassfish.stop.server"/>
       </then>
     </if>
+  </target>
+  
+  <target name="deploy.thirdparty.libs">
+      <delete file="${glassfish.home}/lib/asm-3.1.jar"/>
+	  <copy todir="${glassfish.home}/lib" overwrite="true" flatten="true">
+		<fileset dir="${nhinc.deployment.thirdparty.dir}">
+		    <include name="C3PO/*.jar"/>
+		    <include name="log4j/*.jar"/>
+		    <include name="HibernateLibraries/*.jar"/>
+		    <include name="MySQLDB/*.jar"/>
+		    <include name="XStream/*.jar"/>
+		    <include name="XStream/*.txt"/>
+		    <include name="SpringFramework/*.jar"/>
+		    <include name="Xerces/*.jar"/>
+		    <include name="OpenSSO/*.jar"/>
+		</fileset>
+	  </copy>
   </target>
 
   <target name="undeploy.from.production">
