@@ -24,7 +24,18 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package gov.hhs.fha.nhinc.hiem._20.unsubscribe.entity;
+package gov.hhs.fha.nhinc.hiem._20.entity.unsubscribe;
+
+import gov.hhs.fha.nhinc.common.nhinccommon.AssertionType;
+import gov.hhs.fha.nhinc.common.nhinccommon.NhinTargetCommunitiesType;
+import gov.hhs.fha.nhinc.common.nhinccommonentity.UnsubscribeRequestType;
+import gov.hhs.fha.nhinc.cxf.extraction.SAML2AssertionExtractor;
+import gov.hhs.fha.nhinc.hiem.consumerreference.ReferenceParametersHelper;
+import gov.hhs.fha.nhinc.hiem.consumerreference.SoapHeaderHelper;
+import gov.hhs.fha.nhinc.hiem.consumerreference.SoapMessageElements;
+import gov.hhs.fha.nhinc.nhinclib.NhincConstants;
+import gov.hhs.fha.nhinc.nhinclib.NullChecker;
+import gov.hhs.fha.nhinc.unsubscribe.entity.EntityUnsubscribeOrchImpl;
 
 import javax.xml.ws.WebServiceContext;
 
@@ -35,16 +46,8 @@ import org.oasis_open.docs.wsn.b_2.UnsubscribeResponse;
 import org.oasis_open.docs.wsn.bw_2.UnableToDestroySubscriptionFault;
 import org.w3c.dom.Element;
 
-import gov.hhs.fha.nhinc.common.nhinccommon.AssertionType;
-import gov.hhs.fha.nhinc.common.nhinccommonentity.UnsubscribeRequestType;
-import gov.hhs.fha.nhinc.cxf.extraction.SAML2AssertionExtractor;
-import gov.hhs.fha.nhinc.hiem.consumerreference.SoapHeaderHelper;
-import gov.hhs.fha.nhinc.hiem.consumerreference.SoapMessageElements;
-import gov.hhs.fha.nhinc.nhinclib.NullChecker;
-import gov.hhs.fha.nhinc.unsubscribe.entity.EntityUnsubscribeOrchImpl;
-
 /**
- *
+ * 
  * @author rayj
  */
 public class EntityUnsubscribeServiceImpl {
@@ -81,6 +84,7 @@ public class EntityUnsubscribeServiceImpl {
         UnsubscribeResponse response = null;
         try {
             AssertionType assertion = SAML2AssertionExtractor.getInstance().extractSamlAssertion(context);
+
             String subscriptionId = getSubscriptionId(context);
 
             orchImpl.processUnsubscribe(unsubscribeRequest, subscriptionId, assertion);
@@ -103,7 +107,7 @@ public class EntityUnsubscribeServiceImpl {
             if (nodeName.equals("SubscriptionId")) {
                 String nodeValue = soapHeaderElement.getNodeValue();
                 if (NullChecker.isNullish(nodeValue) && soapHeaderElement.getFirstChild() != null) {
-                    nodeValue =  soapHeaderElement.getFirstChild().getNodeValue();
+                    nodeValue = soapHeaderElement.getFirstChild().getNodeValue();
                 }
                 return nodeValue;
             }
