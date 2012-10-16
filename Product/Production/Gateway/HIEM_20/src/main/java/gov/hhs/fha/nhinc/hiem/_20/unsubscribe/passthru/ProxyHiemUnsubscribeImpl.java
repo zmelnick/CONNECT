@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package gov.hhs.fha.nhinc.hiem._20.unsubscribe.passthru;
+package gov.hhs.fha.nhinc.hiem._20.passthru.unsubscribe;
 
 import javax.xml.ws.WebServiceContext;
 
@@ -65,8 +65,8 @@ public class ProxyHiemUnsubscribeImpl {
         NhinHiemUnsubscribeProxyObjectFactory factory = new NhinHiemUnsubscribeProxyObjectFactory();
         NhinHiemUnsubscribeProxy proxy = factory.getNhinHiemUnsubscribeProxy();
         try {
-            response = proxy.unsubscribe(unsubscribe, soapHeaderElements, assertion, target);
-        } catch (UnableToDestroySubscriptionFault ex) {
+            response = proxy.unsubscribe(unsubscribe, soapHeaderElements, assertion, target,getSubscriptionId(context));            
+        } catch (org.oasis_open.docs.wsn.bw_2.UnableToDestroySubscriptionFault ex) {
             log.error("error occurred", ex);
             response = new UnsubscribeResponse();
             response.getAny().add(ex);
@@ -102,5 +102,23 @@ public class ProxyHiemUnsubscribeImpl {
         log.debug("Exiting ProxyHiemUnsubscribeImpl.unsubscribe...");
         return response;
     }
+    
+    private String getSubscriptionId(WebServiceContext context) {
+        SoapMessageElements soapHeaderElements = new SoapHeaderHelper().getSoapHeaderElements(context);
+        
+        String subscriptionId = null;
+        for (Element soapHeaderElement : soapHeaderElements.getElements()) {
+            String nodeName = soapHeaderElement.getLocalName();
+            if (nodeName.equals("SubscriptionId")) {
+                String nodeValue = soapHeaderElement.getNodeValue();
+                if (NullChecker.isNullish(nodeValue) && soapHeaderElement.getFirstChild() != null) {
+                    nodeValue =  soapHeaderElement.getFirstChild().getNodeValue();
+                }                
+                return nodeValue;
+            }
+        }
 
+        return subscriptionId;
+    }    
+        
 }
