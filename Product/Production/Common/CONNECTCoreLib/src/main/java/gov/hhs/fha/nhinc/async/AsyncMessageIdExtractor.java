@@ -26,8 +26,6 @@
  */
 package gov.hhs.fha.nhinc.async;
 
-import gov.hhs.fha.nhinc.nhinclib.NhincConstants;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,28 +36,47 @@ import org.apache.cxf.binding.soap.SoapHeader;
 import org.apache.cxf.headers.Header;
 import org.w3c.dom.Element;
 
+import gov.hhs.fha.nhinc.nhinclib.NhincConstants;
+
 /**
  * 
  * @author JHOPPESC
  */
 public class AsyncMessageIdExtractor {
 
-    public static String GetAsyncMessageId(WebServiceContext context) {
-        String messageId = null;
+    public static Element getSoapHeaderElement(WebServiceContext context, String headerName) {
+        Element element = null;
 
         MessageContext mContext = context.getMessageContext();
         if (context != null && mContext != null) {
-            List<Header> headers = (List<Header>) mContext.get(org.apache.cxf.headers.Header.HEADER_LIST);
+            @SuppressWarnings("unchecked")
+            List<Header> headers = (List<Header>) mContext.get(Header.HEADER_LIST);
 
             if (headers != null) {
                 for (Header header : headers) {
-                    if (header.getName().getLocalPart().equalsIgnoreCase(NhincConstants.HEADER_MESSAGEID)) {
-                        Element element = (Element) ((SoapHeader) header).getObject();
-                        messageId = element.getFirstChild().getNodeValue();
+                    if (header.getName().getLocalPart().equalsIgnoreCase(headerName)) {
+                        element = (Element) ((SoapHeader) header).getObject();
                     }
                 }
             }
         }
+
+        return element;
+    }
+
+    public static String getMessageId(WebServiceContext context) {
+        String messageId = null;
+
+        Element element = getSoapHeaderElement(context, NhincConstants.HEADER_MESSAGEID);
+        if (element != null) {
+            messageId = element.getFirstChild().getNodeValue();
+        }
+
+        return messageId;
+    }
+
+    public static String getOrCreateAsyncMessageId(WebServiceContext context) {
+        String messageId = getMessageId(context);
 
         if (messageId == null) {
             messageId = AddressingHeaderCreator.generateMessageId();
@@ -67,23 +84,25 @@ public class AsyncMessageIdExtractor {
         return messageId;
     }
 
-    public static List<String> GetAsyncRelatesTo(WebServiceContext context) {
+    public static List<String> getAsyncRelatesTo(WebServiceContext context) {
         List<String> relatesToId = new ArrayList<String>();
 
-        MessageContext mContext = context.getMessageContext();
-        if (context != null && mContext != null) {
-            List<Header> headers = (List<Header>) mContext.get(org.apache.cxf.headers.Header.HEADER_LIST);
-
-            if (headers != null) {
-                for (Header header : headers) {
-                    if (header.getName().getLocalPart().equalsIgnoreCase(NhincConstants.HEADER_RELATESTO)) {
-                        Element element = (Element) ((SoapHeader) header).getObject();
-                        relatesToId.add(element.getFirstChild().getNodeValue());
-                    }
-                }
-            }
+        Element element = getSoapHeaderElement(context, NhincConstants.HEADER_RELATESTO);
+        if (element != null) {
+            relatesToId.add(element.getFirstChild().getNodeValue());
         }
 
         return relatesToId;
+    }
+    
+    public static String getAction(WebServiceContext context) {
+        String action = null;
+
+        Element element = getSoapHeaderElement(context, NhincConstants.WS_SOAP_HEADER_ACTION);
+        if (element != null) {
+            action = element.getFirstChild().getNodeValue();
+        }
+
+        return action;
     }
 }

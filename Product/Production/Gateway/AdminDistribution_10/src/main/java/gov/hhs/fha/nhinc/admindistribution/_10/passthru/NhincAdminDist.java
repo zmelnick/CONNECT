@@ -26,26 +26,30 @@
  */
 package gov.hhs.fha.nhinc.admindistribution._10.passthru;
 
-import javax.jws.WebService;
 import javax.xml.ws.BindingType;
 
 import gov.hhs.fha.nhinc.admindistribution.passthru.PassthruAdminDistributionOrchImpl;
 import gov.hhs.fha.nhinc.nhinclib.NhincConstants;
 
 /**
- * 
+ *
  * @author dunnek
  */
 
 @BindingType(value = javax.xml.ws.soap.SOAPBinding.SOAP12HTTP_BINDING)
 public class NhincAdminDist implements gov.hhs.fha.nhinc.nhincadmindistribution.NhincAdminDistPortType {
 
+    private PassthruAdminDistributionOrchImpl orchImpl;
+
+    @Override
     public void sendAlertMessage(gov.hhs.fha.nhinc.common.nhinccommonproxy.RespondingGatewaySendAlertMessageType body) {
-        getNhincImpl().sendAlertMessage(body.getEDXLDistribution(), body.getAssertion(), body.getNhinTargetSystem(),
+        orchImpl.sendAlertMessage(body.getEDXLDistribution(), body.getAssertion(), body.getNhinTargetSystem(),
                 NhincConstants.GATEWAY_API_LEVEL.LEVEL_g0);
     }
 
-    public PassthruAdminDistributionOrchImpl getNhincImpl() {
-        return new PassthruAdminDistributionOrchImpl();
+    public void setOrchestratorImpl(PassthruAdminDistributionOrchImpl orchImpl) {
+        this.orchImpl = orchImpl;
     }
+
+
 }

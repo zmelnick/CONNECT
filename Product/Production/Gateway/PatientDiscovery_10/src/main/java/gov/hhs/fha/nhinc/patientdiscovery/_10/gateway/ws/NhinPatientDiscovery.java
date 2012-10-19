@@ -26,19 +26,22 @@
  */
 package gov.hhs.fha.nhinc.patientdiscovery._10.gateway.ws;
 
+import gov.hhs.fha.nhinc.generic.GenericFactory;
 import gov.hhs.fha.nhinc.patientdiscovery.NhinPatientDiscoveryImpl;
+import gov.hhs.fha.nhinc.patientdiscovery.PatientDiscoveryAuditLogger;
 import gov.hhs.fha.nhinc.patientdiscovery.PatientDiscoveryException;
+import gov.hhs.fha.nhinc.patientdiscovery.nhin.InboundPatientDiscoveryOrchFactory;
+import gov.hhs.fha.nhinc.patientdiscovery.nhin.InboundPatientDiscoveryOrchestration;
 import gov.hhs.healthit.nhin.PatientDiscoveryFaultType;
 import ihe.iti.xcpd._2009.PRPAIN201305UV02Fault;
 
 import javax.annotation.Resource;
-import javax.jws.WebService;
 import javax.xml.ws.BindingType;
 import javax.xml.ws.WebServiceContext;
 import javax.xml.ws.soap.Addressing;
 
 /**
- *
+ * 
  * @author Neil Webb
  */
 
@@ -46,20 +49,38 @@ import javax.xml.ws.soap.Addressing;
 @BindingType(value = javax.xml.ws.soap.SOAPBinding.SOAP12HTTP_BINDING)
 public class NhinPatientDiscovery extends PatientDiscoveryBase implements ihe.iti.xcpd._2009.RespondingGatewayPortType {
 
+    private NhinPatientDiscoveryImpl orchImpl;
+
     @Resource
     private WebServiceContext context;
 
+    /**
+     * A generic constructor.
+     */
     public NhinPatientDiscovery() {
         super();
     }
 
+    /**
+     * A constructor that takes a PD service factory.
+     * 
+     * @param serviceFactory the service factory.
+     */
     public NhinPatientDiscovery(PatientDiscoveryServiceFactory serviceFactory) {
         super(serviceFactory);
     }
 
-    public org.hl7.v3.PRPAIN201306UV02 respondingGatewayPRPAIN201305UV02(org.hl7.v3.PRPAIN201305UV02 body) throws PRPAIN201305UV02Fault {
+    /**
+     * The web service implementation of Patient Discovery.
+     * 
+     * @param body the body of the request
+     * @return the Patient discovery Response
+     * @throws PRPAIN201305UV02Fault a fault if there's an exception
+     */
+    public org.hl7.v3.PRPAIN201306UV02 respondingGatewayPRPAIN201305UV02(org.hl7.v3.PRPAIN201305UV02 body)
+            throws PRPAIN201305UV02Fault {
         try {
-            return getNhinPatientDiscoveryService().respondingGatewayPRPAIN201305UV02(body, context);
+            return orchImpl.respondingGatewayPRPAIN201305UV02(body, context);
         } catch (PatientDiscoveryException e) {
             PatientDiscoveryFaultType type = new PatientDiscoveryFaultType();
             type.setErrorCode("920");
@@ -69,8 +90,16 @@ public class NhinPatientDiscovery extends PatientDiscoveryBase implements ihe.it
         }
     }
 
-    protected NhinPatientDiscoveryImpl getNhinPatientDiscoveryService() {
-        return getServiceFactory().getNhinPatientDiscoveryService();
+    public void setOrchestratorImpl(NhinPatientDiscoveryImpl orchImpl) {
+        this.orchImpl = orchImpl;
+    }
+    
+    protected PatientDiscoveryAuditLogger getPatientDiscoveryAuditLogger() {
+        return new PatientDiscoveryAuditLogger();
+    }
+    
+    protected GenericFactory<InboundPatientDiscoveryOrchestration> getOrchestrationFactory() {
+        return InboundPatientDiscoveryOrchFactory.getInstance();
     }
 
 }

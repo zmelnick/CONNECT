@@ -1,32 +1,49 @@
 /*
- * Copyright (c) 2012, United States Government, as represented by the Secretary of Health and Human Services. 
- * All rights reserved. 
+ * Copyright (c) 2012, United States Government, as represented by the Secretary of Health and Human Services.
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions are met: 
- *     * Redistributions of source code must retain the above 
- *       copyright notice, this list of conditions and the following disclaimer. 
- *     * Redistributions in binary form must reproduce the above copyright 
- *       notice, this list of conditions and the following disclaimer in the documentation 
- *       and/or other materials provided with the distribution. 
- *     * Neither the name of the United States Government nor the 
- *       names of its contributors may be used to endorse or promote products 
- *       derived from this software without specific prior written permission. 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above
+ *       copyright notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the documentation
+ *       and/or other materials provided with the distribution.
+ *     * Neither the name of the United States Government nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
- * DISCLAIMED. IN NO EVENT SHALL THE UNITED STATES GOVERNMENT BE LIABLE FOR ANY 
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; 
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND 
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE UNITED STATES GOVERNMENT BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 package gov.hhs.fha.nhinc.connectmgr;
 
-import gov.hhs.fha.nhinc.common.nhinccommon.EPRType;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import java.io.File;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+import org.junit.Test;
+import org.uddi.api_v3.BusinessEntity;
+import org.w3._2005._08.addressing.AttributedURIType;
+import org.w3._2005._08.addressing.EndpointReferenceType;
+
 import gov.hhs.fha.nhinc.common.nhinccommon.HomeCommunityType;
 import gov.hhs.fha.nhinc.common.nhinccommon.NhinTargetCommunitiesType;
 import gov.hhs.fha.nhinc.common.nhinccommon.NhinTargetCommunityType;
@@ -34,19 +51,9 @@ import gov.hhs.fha.nhinc.common.nhinccommon.NhinTargetSystemType;
 import gov.hhs.fha.nhinc.connectmgr.persistance.dao.InternalConnectionInfoDAOFileImpl;
 import gov.hhs.fha.nhinc.connectmgr.persistance.dao.UddiConnectionInfoDAOFileImpl;
 import gov.hhs.fha.nhinc.nhinclib.NhincConstants.ADAPTER_API_LEVEL;
-import java.io.File;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import org.junit.Test;
-import org.uddi.api_v3.BusinessEntity;
-import org.xmlsoap.schemas.ws._2004._08.addressing.AttributedURI;
-import org.xmlsoap.schemas.ws._2004._08.addressing.EndpointReferenceType;
-import static org.junit.Assert.*;
 
 /**
- * 
+ *
  * @author Arthur Kong
  */
 public class ConnectionManagerCacheTest {
@@ -67,21 +74,32 @@ public class ConnectionManagerCacheTest {
     private static String FL_REGION_VALUE = "US-FL";
 
     private UddiConnectionInfoDAOFileImpl createUddiConnectionInfoDAO(String filename) {
-        URL url = this.getClass().getResource(filename);
-        File uddiConnectionFile = new File(url.getFile());
-        UddiConnectionInfoDAOFileImpl uddiDAO = UddiConnectionInfoDAOFileImpl.getInstance();
-        uddiDAO.setFileName(uddiConnectionFile.getAbsolutePath());
+        try {
+            URL url = this.getClass().getResource(filename);
 
-        return uddiDAO;
+            File uddiConnectionFile = new File(url.toURI());
+            assertTrue("File does not exist: " + uddiConnectionFile, uddiConnectionFile.exists());
+            UddiConnectionInfoDAOFileImpl uddiDAO = UddiConnectionInfoDAOFileImpl.getInstance();
+            uddiDAO.setFileName(uddiConnectionFile.getAbsolutePath());
+
+            return uddiDAO;
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private InternalConnectionInfoDAOFileImpl createInternalConnectionInfoDAO(String filename) {
-        URL url = this.getClass().getResource(filename);
-        File internalConnectionFile = new File(url.getFile());
-        InternalConnectionInfoDAOFileImpl internalDAO = InternalConnectionInfoDAOFileImpl.getInstance();
-        internalDAO.setFileName(internalConnectionFile.getAbsolutePath());
+        try {
+            URL url = this.getClass().getResource(filename);
+            File internalConnectionFile = new File(url.toURI());
+            assertTrue("File does not exist: " + internalConnectionFile, internalConnectionFile.exists());
+            InternalConnectionInfoDAOFileImpl internalDAO = InternalConnectionInfoDAOFileImpl.getInstance();
+            internalDAO.setFileName(internalConnectionFile.getAbsolutePath());
 
-        return internalDAO;
+            return internalDAO;
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     protected ConnectionManagerCache createConnectionManager_Empty() throws ConnectionManagerException {
@@ -235,7 +253,7 @@ public class ConnectionManagerCacheTest {
             connectionManager = createConnectionManager_Merge();
             entities = connectionManager.getAllBusinessEntities();
             assertEquals(2, entities.size());
-            
+
             // Override 1.1 DQ with internal url
             businessEntity = connectionManager.getBusinessEntity("1.1");
             assertEquals(3, businessEntity.getBusinessServices().getBusinessService().size());
@@ -247,14 +265,14 @@ public class ConnectionManagerCacheTest {
             assertEquals(1, businessEntity.getBusinessServices().getBusinessService().size());
             url = connectionManager.getDefaultEndpointURLByServiceName("2.2", QUERY_FOR_DOCUMENTS_NAME);
             assertTrue(url.equals("https://server4:8181/UddiQueryForDocuments"));
-            
-            
+
+
         } catch (Throwable t) {
             t.printStackTrace();
             fail("Error running testGetAllBusinessEntities test: " + t.getMessage());
         }
     }
-    
+
     @Test
     public void testGetBusinessEntityByHCID() {
         try {
@@ -265,7 +283,7 @@ public class ConnectionManagerCacheTest {
             t.printStackTrace();
             fail("Error running getBusinessEntityByHCID test: " + t.getMessage());
         }
-    }    
+    }
 
     @Test
     public void testMerging() {
@@ -311,31 +329,19 @@ public class ConnectionManagerCacheTest {
         }
     }
 
-    /*@Test
-    public void testGetBusinessServiceByServiceName() {
-    	try {
-        	ConnectionManagerCache connectionManager = createConnectionManager();
-        	assertNotNull(connectionManager.getBusinessEntityByServiceName(HCID_1, QUERY_FOR_DOCUMENTS_NAME));
-        } catch (Throwable t) {
-            t.printStackTrace();
-            fail("Error running testGetBusinessServiceByServiceName test: " + t.getMessage());
-        }
-
-    }*/
-    
     @Test
     public void testGetEndpointURLByServiceName() {
         try {
             ConnectionManagerCache connectionManager = createConnectionManager();
 
             String url = connectionManager.getDefaultEndpointURLByServiceName(HCID_1, QUERY_FOR_DOCUMENTS_NAME);
-            assertTrue(url.equals(QUERY_FOR_DOCUMENTS_URL));
+            assertEquals(QUERY_FOR_DOCUMENTS_URL, url);
 
             url = connectionManager.getDefaultEndpointURLByServiceName("hcidValue123", QUERY_FOR_DOCUMENTS_NAME);
-            assertTrue(url.equals(""));
+            assertEquals("", url);
 
             url = connectionManager.getDefaultEndpointURLByServiceName(HCID_2, DOC_QUERY_DEFERRED_NAME);
-            assertTrue(url.equals(QUERY_FOR_DOCUMENTS_DEFERRED_URL_22));
+            assertEquals(QUERY_FOR_DOCUMENTS_DEFERRED_URL_22, url);
         } catch (Throwable t) {
             t.printStackTrace();
             fail("Error running testGetEndpointURLByServiceName test: " + t.getMessage());
@@ -348,13 +354,13 @@ public class ConnectionManagerCacheTest {
             ConnectionManagerCache connectionManager = createConnectionManager();
 
             String url = connectionManager.getInternalEndpointURLByServiceName(QUERY_FOR_DOCUMENTS_NAME);
-            assertTrue(url.equals(QUERY_FOR_DOCUMENTS_URL));
+            assertEquals(QUERY_FOR_DOCUMENTS_URL, url);
 
             url = connectionManager.getInternalEndpointURLByServiceName("serviceNameValue123");
-            assertTrue(url.equals(""));
+            assertEquals("", url);
 
             url = connectionManager.getInternalEndpointURLByServiceName(RETRIEVE_DOCUMENTS_NAME);
-            assertTrue(url.equals(""));
+            assertEquals("", url);
         } catch (Throwable t) {
             t.printStackTrace();
             fail("Error running testGetEndpointURLByServiceName test: " + t.getMessage());
@@ -363,13 +369,11 @@ public class ConnectionManagerCacheTest {
 
     protected NhinTargetSystemType createNhinTargetSystem() {
         NhinTargetSystemType targetSystem = new NhinTargetSystemType();
-        EPRType eprType = new EPRType();
         EndpointReferenceType endpointReference = new EndpointReferenceType();
-        AttributedURI address = new AttributedURI();
+        AttributedURIType address = new AttributedURIType();
         address.setValue(NHIN_TARGET_ENDPOINT_URL_VALUE);
         endpointReference.setAddress(address);
-        eprType.setEndpointReference(endpointReference);
-        targetSystem.setEpr(eprType);
+        targetSystem.setEpr(endpointReference);
 
         return targetSystem;
     }
@@ -424,7 +428,7 @@ public class ConnectionManagerCacheTest {
 
         return targetCommunities;
     }
-    
+
     protected NhinTargetCommunitiesType createNhinTargetCommunitesForNullendPoints() {
         NhinTargetCommunitiesType targetCommunities = new NhinTargetCommunitiesType();
         NhinTargetCommunityType targetCommunity = new NhinTargetCommunityType();
@@ -437,7 +441,7 @@ public class ConnectionManagerCacheTest {
 
         return targetCommunities;
     }
-    
+
     protected NhinTargetCommunitiesType createNhinTargetCommunitesWithDuplicateTargetCommunities() {
         NhinTargetCommunitiesType targetCommunities = new NhinTargetCommunitiesType();
         NhinTargetCommunityType targetCommunity = new NhinTargetCommunityType();
@@ -447,12 +451,12 @@ public class ConnectionManagerCacheTest {
         targetCommunity.setRegion(FL_REGION_VALUE);
         targetCommunity.setList("Unimplemented");
         targetCommunities.getNhinTargetCommunity().add(targetCommunity);
-        
+
         NhinTargetCommunityType targetCommunityStateOnly = new NhinTargetCommunityType();
         targetCommunityStateOnly.setRegion(FL_REGION_VALUE);
         targetCommunityStateOnly.setList("Unimplemented");
         targetCommunities.getNhinTargetCommunity().add(targetCommunityStateOnly);
-        
+
         return targetCommunities;
     }
 
@@ -466,14 +470,14 @@ public class ConnectionManagerCacheTest {
             assertTrue(endpointUrlList.get(0).getUrl().equals(QUERY_FOR_DOCUMENTS_URL));
 
             endpointUrlList = connectionManager.getEndpointURLFromNhinTargetCommunities(null, QUERY_FOR_DOCUMENTS_NAME);
-            assertEquals(2, endpointUrlList.size());                        
-            
+            assertEquals(2, endpointUrlList.size());
+
         } catch (Throwable t) {
             t.printStackTrace();
             fail("Error running testGetEndpointURLFromNhinTargetCommunities test: " + t.getMessage());
         }
     }
-    
+
     @Test
     public void testGetEndpointURLFromNhinTargetCommunitiesForNullEndPoints() {
         try {
@@ -481,32 +485,32 @@ public class ConnectionManagerCacheTest {
 
             List<UrlInfo> endpointUrlList = connectionManager.getEndpointURLFromNhinTargetCommunities(
                     createNhinTargetCommunitesForNullendPoints(), QUERY_FOR_DOCUMENTS_NAME);
-            assertTrue(endpointUrlList.get(0).getUrl().equals(QUERY_FOR_DOCUMENTS_NULL_URL));                     
-            
+            assertTrue(endpointUrlList.get(0).getUrl().equals(QUERY_FOR_DOCUMENTS_NULL_URL));
+
         } catch (Throwable t) {
             t.printStackTrace();
             fail("Error running testGetEndpointURLFromNhinTargetCommunities test: " + t.getMessage());
         }
     }
-    
-    
-    
-    
+
+
+
+
     @Test
     public void testGetEndpointURLFromNhinTargetCommunitiesUniqueness() {
         try {
             ConnectionManagerCache connectionManager = createConnectionManager();
-                        
+
             List<UrlInfo> endpointUrlList = connectionManager.getEndpointURLFromNhinTargetCommunities(
                     createNhinTargetCommunitesWithDuplicateTargetCommunities(), QUERY_FOR_DOCUMENTS_NAME);
             assertEquals(1, endpointUrlList.size());
-            
+
         } catch (Throwable t) {
             t.printStackTrace();
             fail("Error running testGetEndpointURLFromNhinTargetCommunities test: " + t.getMessage());
         }
     }
-    
+
 
     @Test
     public void testGetAdapterEndpointURL() {

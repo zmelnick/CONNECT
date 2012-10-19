@@ -31,6 +31,8 @@ import javax.xml.ws.BindingType;
 import javax.xml.ws.WebServiceContext;
 import javax.xml.ws.soap.Addressing;
 
+import gov.hhs.fha.nhinc.docsubmission.nhin.NhinDocSubmissionOrchImpl;
+
 /**
  *
  * @author dunnek
@@ -40,15 +42,32 @@ import javax.xml.ws.soap.Addressing;
 public class NhinXDR implements ihe.iti.xdr._2007.DocumentRepositoryXDRPortType {
     @Resource
     private WebServiceContext context;
+    private NhinDocSubmissionOrchImpl orchImpl;
 
+    /**
+     * The web service implementation for Document Submission.
+     * @param body The message of the request
+     * @return a registry response
+     */
+    @Override
     public oasis.names.tc.ebxml_regrep.xsd.rs._3.RegistryResponseType documentRepositoryProvideAndRegisterDocumentSetB(
             ihe.iti.xds_b._2007.ProvideAndRegisterDocumentSetRequestType body) {
-        return new NhinDocSubmissionImpl().documentRepositoryProvideAndRegisterDocumentSetB(body, context);
+        return new NhinDocSubmissionImpl(orchImpl).documentRepositoryProvideAndRegisterDocumentSetB(body, context);
     }
 
+    /**
+     * The web service implementation for Document Submission.
+     * @param body the message of the request
+     * @return a retrieved document
+     */
+    @Override
     public ihe.iti.xds_b._2007.RetrieveDocumentSetResponseType documentRepositoryRetrieveDocumentSet(
             ihe.iti.xds_b._2007.RetrieveDocumentSetRequestType body) {
         throw new UnsupportedOperationException("Not implemented yet.");
+    }
+
+    public void setOrchestratorImpl(NhinDocSubmissionOrchImpl orchImpl) {
+        this.orchImpl = orchImpl;
     }
 
 }

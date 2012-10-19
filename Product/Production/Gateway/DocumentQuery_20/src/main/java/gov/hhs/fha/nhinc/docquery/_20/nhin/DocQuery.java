@@ -26,6 +26,8 @@
  */
 package gov.hhs.fha.nhinc.docquery._20.nhin;
 
+import gov.hhs.fha.nhinc.docquery.nhin.NhinDocQueryOrchImpl;
+
 import javax.annotation.Resource;
 import javax.xml.ws.BindingType;
 import javax.xml.ws.WebServiceContext;
@@ -40,12 +42,24 @@ import javax.xml.ws.soap.Addressing;
 @Addressing(enabled=true)
 public class DocQuery implements ihe.iti.xds_b._2007.RespondingGatewayQueryPortType
 {
+    private NhinDocQueryOrchImpl orchImpl;
+    
     @Resource
     private WebServiceContext context;
 
-    public oasis.names.tc.ebxml_regrep.xsd.query._3.AdhocQueryResponse respondingGatewayCrossGatewayQuery(oasis.names.tc.ebxml_regrep.xsd.query._3.AdhocQueryRequest body)
+    /**
+     * The web service implementation for Document Query.
+     * @param body the body of the request
+     * @return the query response for the document query
+     */
+    public oasis.names.tc.ebxml_regrep.xsd.query._3.AdhocQueryResponse respondingGatewayCrossGatewayQuery(
+    		oasis.names.tc.ebxml_regrep.xsd.query._3.AdhocQueryRequest body)
     {
-        return new DocQueryImpl().respondingGatewayCrossGatewayQuery(body, context);
+        return new DocQueryImpl(orchImpl).respondingGatewayCrossGatewayQuery(body, context);
+    }
+    
+    public void setOrchestratorImpl(NhinDocQueryOrchImpl orchImpl) {
+        this.orchImpl = orchImpl;
     }
 
 }
