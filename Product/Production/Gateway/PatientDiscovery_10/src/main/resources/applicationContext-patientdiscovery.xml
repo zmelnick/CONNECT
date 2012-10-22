@@ -19,20 +19,26 @@ http://cxf.apache.org/jaxws http://cxf.apache.org/schemas/jaxws.xsd http://www.s
 
 
     <bean id="eventfactory" class="gov.hhs.fha.nhinc.event.EventFactoryFactoryBean" />
-    
-    <bean name="eventmanager" class="gov.hhs.fha.nhinc.event.EventManager" factory-method="getInstance" />
 
-    <bean id="auditRepositoryProxyObjectFactory" class="gov.hhs.fha.nhinc.auditrepository.nhinc.proxy.AuditRepositoryProxyObjectFactory" />
+    <bean name="eventmanager" class="gov.hhs.fha.nhinc.event.EventManager"
+        factory-method="getInstance" />
+
+    <bean id="auditRepositoryProxyObjectFactory"
+        class="gov.hhs.fha.nhinc.auditrepository.nhinc.proxy.AuditRepositoryProxyObjectFactory" />
 
 
-     <bean id="auditRepositoryLogger" class="gov.hhs.fha.nhinc.auditrepository.AuditRepositoryLogger"/>
+    <bean id="auditRepositoryLogger"
+        class="gov.hhs.fha.nhinc.auditrepository.AuditRepositoryLogger" />
 
-    <bean id="inboundPatientDiscoveryOrchFactory" class="gov.hhs.fha.nhinc.patientdiscovery.nhin.InboundPatientDiscoveryOrchFactory" factory-method="getInstance" />
+    <bean id="inboundPatientDiscoveryOrchFactory"
+        class="gov.hhs.fha.nhinc.patientdiscovery.nhin.InboundPatientDiscoveryOrchFactory"
+        factory-method="getInstance" />
 
-  
-    <bean id="patientDiscoveryAuditLogger" class="gov.hhs.fha.nhinc.patientdiscovery.PatientDiscoveryAuditLogger" >
+
+    <bean id="patientDiscoveryAuditLogger"
+        class="gov.hhs.fha.nhinc.patientdiscovery.PatientDiscoveryAuditLogger">
         <constructor-arg ref="auditRepositoryLogger" />
-         <constructor-arg ref="auditRepositoryProxyObjectFactory" />
+        <constructor-arg ref="auditRepositoryProxyObjectFactory" />
     </bean>
 
     <bean id="nhinPDOrchestrator"
@@ -47,26 +53,61 @@ http://cxf.apache.org/jaxws http://cxf.apache.org/schemas/jaxws.xsd http://www.s
             <ref bean="nhinPDOrchestrator" />
         </property>
     </bean>
-    
-    
+
+
     <!-- Aspect Service -->
     <aop:aspectj-autoproxy />
-    <bean id="eventAspectAdvice" class="gov.hhs.fha.nhinc.aspect.EventAspectAdvice" />
-    
-    <bean id="eventPDAspect"
-        class="gov.hhs.fha.nhinc.patientdiscovery.aspect.PatientDiscoveryEventAspect">
-        <property name="EventFactory" ref="eventfactory" /> 
+
+
+
+    <bean
+        class="gov.hhs.fha.nhinc.patientdiscovery.aspect.AdapterDelegationEventAspect">
+        <property name="EventFactory" ref="eventfactory" />
         <property name="EventRecorder" ref="eventmanager" />
-     </bean>
-    
-    <bean id="eventPDDefReqAspect"
-        class="gov.hhs.fha.nhinc.patientdiscovery.aspect.PatientDiscoveryDeferredReqEventAspect">
-        <constructor-arg ref="eventAspectAdvice" />
     </bean>
-    
-    <bean id="eventPDDefRespAspect"
-        class="gov.hhs.fha.nhinc.patientdiscovery.aspect.PatientDiscoveryDeferredRespEventAspect">
-        <constructor-arg ref="eventAspectAdvice" />
+
+
+    <bean
+        class="gov.hhs.fha.nhinc.patientdiscovery.aspect.InboundMessagingEventAspect">
+        <property name="EventFactory" ref="eventfactory" />
+        <property name="EventRecorder" ref="eventmanager" />
     </bean>
-    
+
+    <bean
+        class="gov.hhs.fha.nhinc.patientdiscovery.aspect.InboundProcessingEventAspect">
+        <property name="EventFactory" ref="eventfactory" />
+        <property name="EventRecorder" ref="eventmanager" />
+    </bean>
+
+
+    <bean
+        class="gov.hhs.fha.nhinc.patientdiscovery.aspect.MessageProcessingFailedEventAspect">
+        <property name="EventFactory" ref="eventfactory" />
+        <property name="EventRecorder" ref="eventmanager" />
+    </bean>
+
+
+    <bean
+        class="gov.hhs.fha.nhinc.patientdiscovery.aspect.NwhinInnocavtionEventAspect">
+        <property name="EventFactory" ref="eventfactory" />
+        <property name="EventRecorder" ref="eventmanager" />
+    </bean>
+
+
+    <bean
+        class="gov.hhs.fha.nhinc.patientdiscovery.aspect.OutboundMessagingEventAspect">
+        <property name="EventFactory" ref="eventfactory" />
+        <property name="EventRecorder" ref="eventmanager" />
+    </bean>
+
+    <bean
+        class="gov.hhs.fha.nhinc.patientdiscovery.aspect.OutboundProcessingEventAspect">
+        <property name="EventFactory" ref="eventfactory" />
+        <property name="EventRecorder" ref="eventmanager" />
+    </bean>
+
+
+
+
+
 </beans>
