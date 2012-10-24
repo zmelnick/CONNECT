@@ -56,6 +56,20 @@ public class UddiSpecVersionRegistryTest {
 	}
 	
 	@Test
+	public void testGetSupportedSpecsDeferredService() {
+		GATEWAY_API_LEVEL api = GATEWAY_API_LEVEL.LEVEL_g1;
+		ArrayList<UDDI_SPEC_VERSION> list = UddiSpecVersionRegistry.getInstance().getSupportedSpecs(api, NHIN_SERVICE_NAMES.DOCUMENT_SUBMISSION_DEFERRED_REQUEST);
+		assertTrue(list.contains(UDDI_SPEC_VERSION.SPEC_2_0));
+	}
+	
+	@Test
+	public void testGetSupportedSpecsUnusedService() {
+		GATEWAY_API_LEVEL api = GATEWAY_API_LEVEL.LEVEL_g1;
+		ArrayList<UDDI_SPEC_VERSION> list = UddiSpecVersionRegistry.getInstance().getSupportedSpecs(api, NHIN_SERVICE_NAMES.HIEM_SUBSCRIBE);
+		assertTrue(list == null);
+	}
+	
+	@Test
 	public void getSupportedGatewayAPI_1_0() {
 		UDDI_SPEC_VERSION spec = UDDI_SPEC_VERSION.SPEC_1_0;
 		GATEWAY_API_LEVEL api = UddiSpecVersionRegistry.getInstance().getSupportedGatewayAPI(spec, NHIN_SERVICE_NAMES.ADMINISTRATIVE_DISTRIBUTION);

@@ -26,12 +26,6 @@
  */
 package gov.hhs.fha.nhinc.hiem._20.entity.subscribe;
 
-import javax.xml.ws.WebServiceContext;
-
-import org.oasis_open.docs.wsn.b_2.Subscribe;
-import org.oasis_open.docs.wsn.b_2.SubscribeResponse;
-import org.w3c.dom.Element;
-
 import gov.hhs.fha.nhinc.common.nhinccommon.AssertionType;
 import gov.hhs.fha.nhinc.common.nhinccommon.NhinTargetCommunitiesType;
 import gov.hhs.fha.nhinc.common.nhinccommonentity.SubscribeDocumentRequestSecuredType;
@@ -50,11 +44,14 @@ import gov.hhs.fha.nhinc.entitysubscriptionmanagementsecured.UnacceptableInitial
 import gov.hhs.fha.nhinc.entitysubscriptionmanagementsecured.UnrecognizedPolicyRequestFault;
 import gov.hhs.fha.nhinc.entitysubscriptionmanagementsecured.UnsupportedPolicyRequestFault;
 import gov.hhs.fha.nhinc.hiem.dte.SoapUtil;
-import gov.hhs.fha.nhinc.hiem.processor.entity.EntitySubscribeProcessor;
-import gov.hhs.fha.nhinc.nhinclib.NhincConstants;
-import gov.hhs.fha.nhinc.perfrepo.PerformanceManager;
 import gov.hhs.fha.nhinc.saml.extraction.SamlTokenExtractor;
-import gov.hhs.fha.nhinc.util.HomeCommunityMap;
+import gov.hhs.fha.nhinc.subscribe.entity.EntitySubscribeOrchImpl;
+
+import javax.xml.ws.WebServiceContext;
+
+import org.oasis_open.docs.wsn.b_2.Subscribe;
+import org.oasis_open.docs.wsn.b_2.SubscribeResponse;
+import org.w3c.dom.Element;
 
 /**
  *
@@ -95,11 +92,10 @@ public class EntitySubscribeServiceImpl {
 
         Subscribe subscribe = subscribeRequest.getSubscribe();
         NhinTargetCommunitiesType targetCommunitites = subscribeRequest.getNhinTargetCommunities();
-        Element subscribeElement = new SoapUtil().extractFirstElement(context, "subscribeSoapMessage", "Subscribe");
 
         SubscribeResponse response = null;
         try {
-            response = subscribe(subscribe, subscribeElement, assertion, targetCommunitites);
+            response = subscribe(subscribe, assertion, targetCommunitites);
         } catch (org.oasis_open.docs.wsn.bw_2.TopicNotSupportedFault ex) {
             throw new TopicNotSupportedFault(ex.getMessage(), ex.getFaultInfo(), ex.getCause());
         } catch (org.oasis_open.docs.wsn.bw_2.InvalidTopicExpressionFault ex) {
@@ -116,20 +112,19 @@ public class EntitySubscribeServiceImpl {
 
     public org.oasis_open.docs.wsn.b_2.SubscribeResponse subscribe(
             gov.hhs.fha.nhinc.common.nhinccommonentity.SubscribeRequestType subscribeRequest, WebServiceContext context)
-            throws gov.hhs.fha.nhinc.entitysubscriptionmanagement.TopicNotSupportedFault,
-            gov.hhs.fha.nhinc.entitysubscriptionmanagement.InvalidTopicExpressionFault,
-            gov.hhs.fha.nhinc.entitysubscriptionmanagement.SubscribeCreationFailedFault,
-            gov.hhs.fha.nhinc.entitysubscriptionmanagement.ResourceUnknownFault {
+                    throws gov.hhs.fha.nhinc.entitysubscriptionmanagement.TopicNotSupportedFault,
+                    gov.hhs.fha.nhinc.entitysubscriptionmanagement.InvalidTopicExpressionFault,
+                    gov.hhs.fha.nhinc.entitysubscriptionmanagement.SubscribeCreationFailedFault,
+                    gov.hhs.fha.nhinc.entitysubscriptionmanagement.ResourceUnknownFault {
         log.debug("In subscribe");
         AssertionType assertion = SamlTokenExtractor.GetAssertion(context);
 
         Subscribe subscribe = subscribeRequest.getSubscribe();
         NhinTargetCommunitiesType targetCommunitites = subscribeRequest.getNhinTargetCommunities();
-        Element subscribeElement = new SoapUtil().extractFirstElement(context, "subscribeSoapMessage", "Subscribe");
 
         SubscribeResponse response = null;
         try {
-            response = subscribe(subscribe, subscribeElement, assertion, targetCommunitites);
+            response = subscribe(subscribe, assertion, targetCommunitites);
         } catch (org.oasis_open.docs.wsn.bw_2.TopicNotSupportedFault ex) {
             throw new gov.hhs.fha.nhinc.entitysubscriptionmanagement.TopicNotSupportedFault(ex.getMessage(),
                     ex.getFaultInfo(), ex.getCause());
@@ -146,26 +141,15 @@ public class EntitySubscribeServiceImpl {
         return response;
     }
 
-    private org.oasis_open.docs.wsn.b_2.SubscribeResponse subscribe(Subscribe subscribe, Element subscribeElement,
+    private org.oasis_open.docs.wsn.b_2.SubscribeResponse subscribe(Subscribe subscribe,
             AssertionType assertion, NhinTargetCommunitiesType targetCommunitites)
-            throws org.oasis_open.docs.wsn.bw_2.TopicNotSupportedFault,
-            org.oasis_open.docs.wsn.bw_2.InvalidTopicExpressionFault,
-            org.oasis_open.docs.wsn.bw_2.SubscribeCreationFailedFault,
-            org.oasis_open.docs.wsn.bw_2.ResourceUnknownFault {
+                    throws org.oasis_open.docs.wsn.bw_2.TopicNotSupportedFault,
+                    org.oasis_open.docs.wsn.bw_2.InvalidTopicExpressionFault,
+                    org.oasis_open.docs.wsn.bw_2.SubscribeCreationFailedFault,
+                    org.oasis_open.docs.wsn.bw_2.ResourceUnknownFault {
         SubscribeResponse response = null;
-        EntitySubscribeProcessor processor = new EntitySubscribeProcessor();
-
-        // Log the start of the entity performance record
-        PerformanceManager.getPerformanceManagerInstance().logPerformanceStart(
-                NhincConstants.HIEM_SUBSCRIBE_ENTITY_SERVICE_NAME, NhincConstants.AUDIT_LOG_ENTITY_INTERFACE,
-                NhincConstants.AUDIT_LOG_OUTBOUND_DIRECTION, HomeCommunityMap.getLocalHomeCommunityId());
-
-        response = processor.processSubscribe(subscribe, subscribeElement, assertion, targetCommunitites);
-
-        // Log the end of the entity performance record
-        PerformanceManager.getPerformanceManagerInstance().logPerformanceStop(
-                NhincConstants.HIEM_SUBSCRIBE_ENTITY_SERVICE_NAME, NhincConstants.AUDIT_LOG_ENTITY_INTERFACE,
-                NhincConstants.AUDIT_LOG_OUTBOUND_DIRECTION, HomeCommunityMap.getLocalHomeCommunityId());
+        EntitySubscribeOrchImpl processor = new EntitySubscribeOrchImpl();
+        response = processor.processSubscribe(subscribe, assertion, targetCommunitites);
         return response;
     }
 }
